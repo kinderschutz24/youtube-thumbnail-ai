@@ -122,7 +122,6 @@ export default function App() {
   }, []);
   const [lang, setLang] = useState<Language>(Language.DE);
 
-  const [lang, setLang] = useState<Language>(Language.DE);
   const [step, setStep] = useState(1);
   const [activeDnaTab, setActiveDnaTab] = useState<'colors' | 'style' | 'camera' | null>(null);
   const [results, setResults] = useState<ThumbnailResult[]>([]);
