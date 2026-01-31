@@ -114,6 +114,14 @@ const AudioInput: React.FC<{ onResult: (text: string) => void }> = ({ onResult }
 
 export default function App() {
   const [hasKey, setHasKey] = useState(false);
+    const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  useEffect(() => {
+    const ok = localStorage.getItem("ytai_paid_access") === "yes";
+    setIsLoggedIn(ok);
+  }, []);
+  const [lang, setLang] = useState<Language>(Language.DE);
+
   const [lang, setLang] = useState<Language>(Language.DE);
   const [step, setStep] = useState(1);
   const [activeDnaTab, setActiveDnaTab] = useState<'colors' | 'style' | 'camera' | null>(null);
