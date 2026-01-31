@@ -247,6 +247,25 @@ export default function App() {
   );
 }
 
+  if (!isLoggedIn) {
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center text-white text-center p-6">
+      <h1 className="text-3xl font-bold mb-4">Zugang erforderlich</h1>
+      <p className="max-w-md text-white/70 mb-6">
+        Du kannst die App kostenlos testen.  
+        Für den Zugang ist eine Anmeldung mit Zahlungsmethode nötig.  
+        Erst nach der Testphase werden 2 CHF / Monat verrechnet.
+      </p>
+      <a
+        href="DEIN_STRIPE_PAYMENT_LINK"
+        className="bg-red-600 hover:bg-red-700 px-8 py-4 rounded-full font-bold uppercase"
+      >
+        Jetzt freischalten
+      </a>
+    </div>
+  );
+}
+
   if (!hasKey) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center">
