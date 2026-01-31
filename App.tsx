@@ -239,6 +239,14 @@ export default function App() {
     setStep(1); setResults([]); setTips([]); setRefinementTexts({}); setRefinementImages({});
   };
 
+  if (!isLoggedIn) {
+  return (
+    <div className="min-h-screen flex items-center justify-center text-white text-xl">
+      Bitte zuerst einloggen / bezahlen
+    </div>
+  );
+}
+
   if (!hasKey) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center">
