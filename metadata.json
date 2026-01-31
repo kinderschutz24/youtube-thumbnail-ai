@@ -1,0 +1,8 @@
+{
+  "name": "YouTube Thumbnail AI - 2.o",
+  "description": "Professional YouTube Thumbnail Generator for story-driven creators, driven by high-CTR psychology and advanced Gemini AI imaging.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
