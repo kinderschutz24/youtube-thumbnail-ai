@@ -160,7 +160,9 @@ export default function App() {
       window.aistudio.openSelectKey().catch(e => console.error("Dialog-Fehler:", e));
     }
     // Sofort fortfahren gemäß Systemregel zur Vermeidung von Race Conditions
-    setHasKey(true);
+    localStorage.setItem("ytai_has_api_key", "yes");
+setHasKey(true);
+
   };
 
   const dnaOptions = {
