@@ -143,21 +143,7 @@ useEffect(() => {
     dna: { colors: [], style: [], camera: [], customStyle: '', specialStyles: [] }
   });
 
-  useEffect(() => {
-    const checkKey = async () => {
-      try {
-        if (window.aistudio && typeof window.aistudio.hasSelectedApiKey === 'function') {
-          const selected = await window.aistudio.hasSelectedApiKey();
-          setHasKey(selected);
-        }
-      } catch (e) {
-        console.warn("Plattform-Check noch nicht bereit.");
-      }
-    };
-    checkKey();
-  }, []);
-
-  useEffect(() => { setState(prev => ({ ...prev, sloganLanguage: lang })); }, [lang]);
+   useEffect(() => { setState(prev => ({ ...prev, sloganLanguage: lang })); }, [lang]);
 
   const handleKeySelection = () => {
     // LÖSUNG: Kein await verwenden, um das "Steckenbleiben" zu verhindern
