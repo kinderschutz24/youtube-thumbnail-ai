@@ -242,7 +242,7 @@ setHasKey(true);
         Erst nach der Testphase werden 2 CHF / Monat verrechnet.
       </p>
       <a
-        href="DEIN_STRIPE_PAYMENT_LINK"
+        href="https://buy.stripe.com/aFadRa6KK0gA4MjgKI6Zy00"
         className="bg-red-600 hover:bg-red-700 px-8 py-4 rounded-full font-bold uppercase"
       >
         Jetzt freischalten
