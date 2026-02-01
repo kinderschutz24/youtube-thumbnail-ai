@@ -120,6 +120,11 @@ export default function App() {
     const ok = localStorage.getItem("ytai_paid_access") === "yes";
     setIsLoggedIn(ok);
   }, []);
+useEffect(() => {
+  const ok = localStorage.getItem("ytai_has_api_key") === "yes";
+  setHasKey(ok);
+}, []);
+
   const [lang, setLang] = useState<Language>(Language.DE);
 
   const [step, setStep] = useState(1);
