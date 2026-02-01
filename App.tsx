@@ -117,9 +117,19 @@ export default function App() {
     const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   useEffect(() => {
-    const ok = localStorage.getItem("ytai_paid_access") === "yes";
-    setIsLoggedIn(ok);
-  }, []);
+  // 1) Wenn Stripe uns mit ?paid=1 zurückschickt → freischalten
+  const paid = new URLSearchParams(window.location.search).get("paid");
+  if (paid === "1") {
+    localStorage.setItem("ytai_paid_access", "yes");
+    // URL sauber machen (damit paid=1 nicht immer bleibt)
+    window.history.replaceState({}, document.title, window.location.pathname);
+  }
+
+  // 2) Login-Status aus LocalStorage ziehen
+  const ok = localStorage.getItem("ytai_paid_access") === "yes";
+  setIsLoggedIn(ok);
+}, []);
+
 useEffect(() => {
   const ok = localStorage.getItem("ytai_has_api_key") === "yes";
   setHasKey(ok);
