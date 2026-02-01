@@ -258,7 +258,7 @@ export default function App() {
   );
 }
 
-  if (false) {
+  if (!hasKey) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center">
         <img src="https://drive.google.com/thumbnail?id=153FZr2r59JJLnApFRrO73DIzcGT72hXv&sz=w500" className="w-64 mb-12 opacity-80" alt="Logo" />
