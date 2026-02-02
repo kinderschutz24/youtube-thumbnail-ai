@@ -44,14 +44,23 @@ const Header: React.FC<{
       </div>
 
       <a
-        href="https://drive.google.com/drive/folders/1WKPlOlxZhyNiumrnW5AR65C-AGWRu4HO?usp=sharing"
+        href="https://amzn.to/46fkqgk"
         target="_blank"
         rel="noopener noreferrer"
         className="bg-red-600 text-white px-6 py-2 rounded-full font-black text-sm hover:bg-red-700 transition shadow-lg shadow-red-600/40"
       >
         Tutorial
       </a>
+ <a
+        href="https://drive.google.com/drive/folders/1WKPlOlxZhyNiumrnW5AR65C-AGWRu4HO?usp=sharing"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="bg-red-600 text-white px-6 py-2 rounded-full font-black text-sm hover:bg-red-700 transition shadow-lg shadow-red-600/40"
+      >
+        Empfehlung
+      </a>
 
+      
       <button
         onClick={onRegenerate}
         className="bg-white text-black px-6 py-2 rounded-full font-black text-sm hover:bg-red-600 hover:text-white transition shadow-xl"
