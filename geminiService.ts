@@ -152,7 +152,7 @@ COMPOSITION: Cinematic, intense, professional YouTube quality. Aspect ratio 16:9
         descriptionSuggestion: `Beschreibung-Idee basierend auf "${state.videoTopic}"...`,
         hashtags: ["#EliteThumbnail", "#ViralContent", "#CreatorEconomy"],
         isGenerating: false,
-      };
+      
       } catch (err: any) {
       console.error("Gemini Error:", err);
       throw err;
