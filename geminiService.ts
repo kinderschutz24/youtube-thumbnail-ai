@@ -154,18 +154,9 @@ COMPOSITION: Cinematic, intense, professional YouTube quality. Aspect ratio 16:9
         isGenerating: false,
       };
     } catch (err: any) {
-      console.error("Gemini Error:", err);
-
-      // Wichtig: NIE hängen bleiben. Immer sauber beenden.
-      return {
-        isGenerating: false,
-        url: `https://picsum.photos/1280/720?sig=${Math.random()}`,
-        titleSuggestion: `Fehler: ${String(err?.message || err)}`.slice(0, 80),
-        descriptionSuggestion: "Bitte später erneut versuchen oder API-Key/Limit prüfen.",
-        hashtags: [],
-      };
-    }
-  }
+  console.error("Gemini Error:", err);
+  throw err;
+}
 
   async getTips(state: AppState, currentTips: string[], uiLang: Language): Promise<string> {
     const apiKey = this.getApiKey();
