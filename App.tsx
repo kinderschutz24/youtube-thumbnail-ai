@@ -3,16 +3,6 @@ import { Language, AppState, ThumbnailResult } from './types';
 import { translations } from './translations';
 import { GeminiService } from './geminiService';
 
-declare global {
-  interface AIStudio {
-    hasSelectedApiKey: () => Promise<boolean>;
-    openSelectKey: () => Promise<void>;
-  }
-  interface Window {
-    aistudio: AIStudio;
-  }
-}
-
 const Header: React.FC<{
   lang: Language;
   setLang: (l: Language) => void;
@@ -170,6 +160,7 @@ export default function App() {
   }, []);
 
   const [lang, setLang] = useState<Language>(Language.DE);
+
   const [step, setStep] = useState(1);
   const [activeDnaTab, setActiveDnaTab] = useState<'colors' | 'style' | 'camera' | null>(null);
   const [results, setResults] = useState<ThumbnailResult[]>([]);
@@ -429,10 +420,12 @@ export default function App() {
 
       {step === 1 ? (
         <div className="space-y-16 animate-in fade-in slide-in-from-bottom-8 duration-700 pb-20">
+          {/* TEIL 1 – KONZEPT & STORY */}
           <section className="bg-white/5 backdrop-blur-xl p-12 rounded-[2.5rem] border-2 border-white/20 relative shadow-2xl">
             <div className="absolute top-0 right-0 bg-red-600 px-8 py-3 text-sm font-black uppercase tracking-[0.2em] rounded-bl-3xl shadow-2xl">
               Teil 1 – KONZEPT & STORY
             </div>
+
             <div className="text-center mb-16">
               <label className="block text-xl font-black text-white mb-4 uppercase tracking-widest">{translations.ytLink[lang]}</label>
               <input
@@ -504,7 +497,198 @@ export default function App() {
             </div>
           </section>
 
-          {/* Alles darunter bleibt wie bei dir – ich habe nur das Key-Input sauber gemacht */}
+          {/* TEIL 2 – MEDIA ASSETS */}
+          <section className="bg-white/5 backdrop-blur-xl p-12 rounded-[2.5rem] border-2 border-white/20 relative shadow-2xl">
+            <div className="absolute top-0 right-0 bg-red-600 px-8 py-3 text-sm font-black uppercase tracking-[0.2em] rounded-bl-3xl shadow-2xl">
+              Teil 2 – MEDIA ASSETS
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-20">
+              <div>
+                <h3 className="text-2xl font-black uppercase mb-8 text-red-500">{translations.environmentPhotos[lang]}</h3>
+                <div className="grid grid-cols-4 gap-5">
+                  <div className="aspect-square border-3 border-dashed border-white/40 rounded-3xl flex items-center justify-center relative cursor-pointer hover:border-red-600 transition bg-white/5">
+                    <input type="file" multiple className="absolute inset-0 opacity-0" onChange={(e) => handleFileUpload(e, 'environmentImages')} />
+                    <span className="text-4xl">+</span>
+                  </div>
+                  {state.environmentImages.map((img, idx) => (
+                    <div key={idx} className="aspect-square rounded-3xl overflow-hidden relative border-2 border-white/20 group">
+                      <img src={img} className="w-full h-full object-cover" alt="" />
+                      <button
+                        onClick={() => removeFile(idx, 'environmentImages')}
+                        className="absolute top-2 right-2 bg-red-600 text-white p-1.5 rounded-xl opacity-0 group-hover:opacity-100 transition"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-2xl font-black uppercase mb-8 text-red-500">{translations.protagonistPhotos[lang]}</h3>
+                <div className="grid grid-cols-4 gap-5">
+                  <div className="aspect-square border-3 border-dashed border-white/40 rounded-3xl flex items-center justify-center relative cursor-pointer hover:border-red-600 transition bg-white/5">
+                    <input type="file" multiple className="absolute inset-0 opacity-0" onChange={(e) => handleFileUpload(e, 'protagonistImages')} />
+                    <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2.5"
+                        d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
+                      ></path>
+                    </svg>
+                  </div>
+
+                  {state.protagonistImages.map((img, idx) => (
+                    <div key={idx} className="aspect-square rounded-3xl overflow-hidden relative border-2 border-white/20 group">
+                      <img src={img} className="w-full h-full object-cover" alt="" />
+                      <button
+                        onClick={() => removeFile(idx, 'protagonistImages')}
+                        className="absolute top-2 right-2 bg-red-600 text-white p-1.5 rounded-xl opacity-0 group-hover:opacity-100 transition"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* TEIL 3 – CTR-BOOST */}
+          <section className="bg-white/5 backdrop-blur-xl p-12 rounded-[2.5rem] border-2 border-white/20 relative shadow-2xl">
+            <div className="absolute top-0 right-0 bg-red-600 px-8 py-3 text-sm font-black uppercase tracking-[0.2em] rounded-bl-3xl shadow-2xl">
+              Teil 3 – CTR-BOOST
+            </div>
+
+            <div className="grid md:grid-cols-3 gap-16">
+              <div className="space-y-8">
+                <h4 className="text-base font-black uppercase text-white tracking-widest">{translations.textOptions[lang]}</h4>
+                <div className="flex flex-col gap-4">
+                  {['always', 'none', 'mixed'].map((opt) => (
+                    <button
+                      key={opt}
+                      onClick={() => setState({ ...state, textControl: opt as any })}
+                      className={`text-left px-8 py-5 rounded-2xl border-3 transition font-black uppercase text-xs tracking-[0.2em] shadow-xl ${
+                        state.textControl === opt ? 'bg-red-600 border-red-600 scale-105 shadow-red-600/30' : 'bg-white/10 border-white/10 text-white'
+                      }`}
+                    >
+                      {translations[opt === 'always' ? 'alwaysText' : opt === 'none' ? 'noText' : 'mixedText'][lang]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {state.textControl !== 'none' && (
+                <div className="space-y-8">
+                  <h4 className="text-base font-black uppercase text-white tracking-widest">{translations.textCreation[lang]}</h4>
+                  <div className="flex flex-col gap-4">
+                    <button
+                      onClick={() => setState({ ...state, textCreation: 'ai' })}
+                      className={`text-left px-8 py-5 rounded-2xl border-3 transition font-black uppercase text-xs tracking-[0.2em] shadow-xl ${
+                        state.textCreation === 'ai' ? 'bg-red-600 border-red-600 scale-105' : 'bg-white/10 border-white/10 text-white'
+                      }`}
+                    >
+                      {translations.aiText[lang]}
+                    </button>
+
+                    <button
+                      onClick={() => setState({ ...state, textCreation: 'user' })}
+                      className={`text-left px-8 py-5 rounded-2xl border-3 transition font-black uppercase text-xs tracking-[0.2em] shadow-xl ${
+                        state.textCreation === 'user' ? 'bg-red-600 border-red-600 scale-105' : 'bg-white/10 border-white/10 text-white'
+                      }`}
+                    >
+                      {translations.userText[lang]}
+                    </button>
+
+                    {state.textCreation === 'user' && (
+                      <input
+                        className="w-full bg-white/10 border-2 border-white/20 rounded-2xl px-6 py-4 mt-2 text-white font-black uppercase text-xs outline-none"
+                        placeholder="Max 5 Wörter..."
+                        value={state.userCustomText}
+                        onChange={(e) => setState({ ...state, userCustomText: e.target.value })}
+                      />
+                    )}
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-8">
+                <h4 className="text-base font-black uppercase text-white tracking-widest">{translations.sloganLang[lang]}</h4>
+                <div className="flex flex-wrap gap-4">
+                  {(Object.keys(Language) as Language[]).map((l) => (
+                    <button
+                      key={l}
+                      onClick={() => setState({ ...state, sloganLanguage: l })}
+                      className={`px-6 py-4 rounded-xl font-black transition text-base shadow-lg ${
+                        state.sloganLanguage === l ? 'bg-white text-black scale-110' : 'bg-white/10 text-white'
+                      }`}
+                    >
+                      {l}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* TEIL 4 – BILD-DNA */}
+          <section className="bg-white/5 backdrop-blur-xl p-12 rounded-[2.5rem] border-2 border-white/20 relative shadow-2xl">
+            <div className="absolute top-0 right-0 bg-red-600 px-8 py-3 text-sm font-black uppercase tracking-[0.2em] rounded-bl-3xl shadow-2xl">
+              Teil 4 – BILD-DNA
+            </div>
+
+            <h2 className="text-4xl font-black mb-4 uppercase text-white italic underline decoration-red-600 decoration-8 underline-offset-8">BILD-DNA</h2>
+            <p className="text-red-600 font-black mb-12 uppercase text-base tracking-[0.4em]">{translations.optionalHint[lang]}</p>
+
+            <div className="grid grid-cols-3 gap-8 mb-12">
+              {(['colors', 'style', 'camera'] as const).map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveDnaTab(activeDnaTab === tab ? null : tab)}
+                  className={`border-4 rounded-[2rem] py-8 font-black text-sm uppercase transition shadow-2xl tracking-[0.3em] ${
+                    activeDnaTab === tab ? 'bg-red-600 border-red-600 scale-105' : 'bg-white/10 border-white/10 text-white hover:bg-white/20'
+                  }`}
+                >
+                  {translations[tab === 'colors' ? 'colorsLight' : tab === 'style' ? 'style' : 'cameraPerspective'][lang]}
+                </button>
+              ))}
+            </div>
+
+            {activeDnaTab && (
+              <div className="bg-black/60 border-2 border-white/20 rounded-[2.5rem] p-12 mb-12 animate-in fade-in duration-300">
+                <div className="flex flex-wrap gap-4">
+                  {dnaOptions[activeDnaTab].map((opt) => (
+                    <button
+                      key={opt}
+                      onClick={() => toggleDnaOption(activeDnaTab, opt)}
+                      className={`px-6 py-4 rounded-2xl text-xs font-black transition border-3 ${
+                        state.dna[activeDnaTab].includes(opt) ? 'bg-red-600 border-red-600 text-white scale-110' : 'bg-white/10 border-white/20 text-white'
+                      }`}
+                    >
+                      {opt}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-8">
+              <label className="text-lg font-black uppercase text-white tracking-[0.2em]">{translations.ownStyle[lang]}</label>
+              <input
+                className="w-full bg-white/10 border-2 border-white/30 rounded-3xl px-8 py-6 text-white text-xl outline-none"
+                value={state.dna.customStyle}
+                onChange={(e) => setState({ ...state, dna: { ...state.dna, customStyle: e.target.value } })}
+                placeholder="Eigener Stil..."
+              />
+            </div>
+          </section>
+
           <div className="flex justify-center">
             <button
               onClick={handleCreate}
@@ -622,8 +806,6 @@ export default function App() {
               </div>
             ))}
           </div>
-
-          {/* Footer immer */}
         </div>
       )}
 
@@ -631,4 +813,3 @@ export default function App() {
     </div>
   );
 }
-
