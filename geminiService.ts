@@ -3,8 +3,11 @@ import { AppState, ThumbnailResult, Language } from "./types";
 
 export class GeminiService {
   private getApiKey(): string {
-    const key = localStorage.getItem("ytai_gemini_api_key")?.trim();
-    if (!key) throw new Error("Gemini API Key fehlt (localStorage: ytai_gemini_api_key)");
+    // App.tsx speichert den Key unter: ytai_gemini_api_key
+    const key = localStorage.getItem("ytai_gemini_api_key")?.trim() || "";
+    if (!key) {
+      throw new Error("Gemini API Key fehlt (localStorage: ytai_gemini_api_key)");
+    }
     return key;
   }
 
@@ -19,56 +22,84 @@ export class GeminiService {
     return names[lang] ?? "English";
   }
 
+  // Hard timeout wrapper: verhindert Endlos-Spinners, auch wenn die API “hängt”
+  private async withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+      const t = window.setTimeout(() => {
+        reject(new Error(`Timeout nach ${ms}ms (${label})`));
+      }, ms);
+
+      p.then((v) => {
+        window.clearTimeout(t);
+        resolve(v);
+      }).catch((e) => {
+        window.clearTimeout(t);
+        reject(e);
+      });
+    });
+  }
+
+  private extractImageDataUrl(response: any): string {
+    // @google/genai liefert Bilder typischerweise als inlineData in parts
+    const parts = response?.candidates?.[0]?.content?.parts || [];
+    for (const part of parts) {
+      const data = part?.inlineData?.data;
+      const mime = part?.inlineData?.mimeType || "image/png";
+      if (data) return `data:${mime};base64,${data}`;
+    }
+    return "";
+  }
+
   async generateThumbnailContent(
     state: AppState,
     index: number,
     refinementText?: string,
     refinementImage?: string
   ): Promise<Partial<ThumbnailResult>> {
-    const ai = new GoogleGenAI({ apiKey: this.getApiKey() }); // ✅ Browser-Key aus localStorage
+    const apiKey = this.getApiKey();
+    const ai = new GoogleGenAI({ apiKey });
+
+    // Hinweis: Modell kann sich ändern – aber das ist erstmal ok.
     const imageModel = "gemini-3-pro-image-preview";
     const sloganLangName = this.getLanguageName(state.sloganLanguage);
 
-    // Text-Regel
-    let textRule = "DO NOT include any text on the image.";
+    let textRule = "";
     if (state.textControl === "always" || (state.textControl === "mixed" && index <= 2)) {
       const textInstruction =
         state.textCreation === "user"
-          ? `USE THIS EXACT TEXT: "${(state.userCustomText || "Action").trim()}"`
-          : `Generate a catchy, high-CTR action slogan (max 5 words) that fits the story and scene.`;
+          ? `USE THIS EXACT TEXT: "${state.userCustomText || "Action"}"`
+          : `AI TASK: Generate a catchy, high-CTR action slogan (max 4-5 words) that fits topic + story perfectly.`;
 
       textRule = `
-CRITICAL:
-- Text on image MUST be in ${sloganLangName}.
-- Text MUST NOT exceed 5 words.
+CRITICAL: Text on image MUST be in ${sloganLangName}.
+CRITICAL: Text MUST NOT exceed 5 words.
 ${textInstruction}
-IMPORTANT: NEVER place text across a human face.
-`;
+Visual style: Bold action fonts, integrated in 3D space, positioned artistically.
+IMPORTANT: NEVER cross the face of a human figure.
+`.trim();
+    } else {
+      textRule = "DO NOT include any text on the image.";
     }
 
-    // Parts zusammenbauen (Bilder + Prompt)
-    const parts: any[] = [];
+    const visualParts: any[] = [];
 
-    // Refinement image zuerst (falls vorhanden)
+    // Optional: Refinement Image zuerst
     if (refinementImage) {
-      parts.push({
-        inlineData: {
-          data: refinementImage.split(",")[1],
-          mimeType: "image/png",
-        },
+      visualParts.push({
+        inlineData: { data: refinementImage.split(",")[1], mimeType: "image/png" },
       });
     }
 
-    // Referenzbilder (max. 3/2/2 wie vorher)
-    state.protagonistImages.slice(0, 3).forEach((img) =>
-      parts.push({ inlineData: { data: img.split(",")[1], mimeType: "image/png" } })
-    );
-    state.environmentImages.slice(0, 2).forEach((img) =>
-      parts.push({ inlineData: { data: img.split(",")[1], mimeType: "image/png" } })
-    );
-    state.detailImages.slice(0, 2).forEach((img) =>
-      parts.push({ inlineData: { data: img.split(",")[1], mimeType: "image/png" } })
-    );
+    // Referenzen
+    state.protagonistImages.slice(0, 3).forEach((img) => {
+      visualParts.push({ inlineData: { data: img.split(",")[1], mimeType: "image/png" } });
+    });
+    state.environmentImages.slice(0, 2).forEach((img) => {
+      visualParts.push({ inlineData: { data: img.split(",")[1], mimeType: "image/png" } });
+    });
+    state.detailImages.slice(0, 2).forEach((img) => {
+      visualParts.push({ inlineData: { data: img.split(",")[1], mimeType: "image/png" } });
+    });
 
     const refinementPrompt = refinementText
       ? `CRITICAL CHANGE REQUEST: ${refinementText}. Implement ONLY this change while preserving everything else.`
@@ -79,6 +110,7 @@ TASK: Generate high-CTR YouTube Thumbnail #${index}.
 
 STRICT PROHIBITIONS:
 - NO NUDITY, NO NSFW, NO SUGGESTIVE CONTENT.
+- If reference images exist: use them for the protagonist.
 
 CONTEXT:
 Topic: "${state.videoTopic}"
@@ -94,44 +126,74 @@ Custom Style Info: ${state.dna.customStyle}
 ${textRule}
 ${refinementPrompt}
 
-COMPOSITION: cinematic, intense, professional YouTube quality.
-Aspect ratio 16:9.
-`;
+COMPOSITION: Cinematic, intense, professional YouTube quality. Aspect ratio 16:9.
+`.trim();
 
-    parts.push({ text: promptText });
+    visualParts.push({ text: promptText });
 
-    // Call
-    const response = await ai.models.generateContent({
-      model: imageModel,
-      contents: { parts },
-      config: { imageConfig: { aspectRatio: "16:9", imageSize: "1K" } },
-    });
+    try {
+      // 35s Timeout → UI kann nicht mehr “endlos drehen”
+      const response = await this.withTimeout(
+        ai.models.generateContent({
+          model: imageModel,
+          contents: { parts: visualParts },
+          config: { imageConfig: { aspectRatio: "16:9", imageSize: "1K" } },
+        }) as any,
+        35000,
+        `generateThumbnailContent #${index}`
+      );
 
-    // Bild aus Response holen
-    const returnedParts = response.candidates?.[0]?.content?.parts || [];
-    const imgPart = returnedParts.find((p: any) => p.inlineData?.data);
+      const imageUrl = this.extractImageDataUrl(response);
+      if (!imageUrl) throw new Error("Kein Bild im Response (inlineData fehlt)");
 
-    if (!imgPart?.inlineData?.data) {
-      throw new Error("Gemini hat kein Bild zurückgegeben (inlineData fehlt)");
+      return {
+        url: imageUrl,
+        titleSuggestion: `Titel-Idee (${sloganLangName})`,
+        descriptionSuggestion: `Beschreibung-Idee basierend auf "${state.videoTopic}"...`,
+        hashtags: ["#EliteThumbnail", "#ViralContent", "#CreatorEconomy"],
+        isGenerating: false,
+      };
+    } catch (err: any) {
+      console.error("Gemini Error:", err);
+
+      // Wichtig: NIE hängen bleiben. Immer sauber beenden.
+      return {
+        isGenerating: false,
+        url: `https://picsum.photos/1280/720?sig=${Math.random()}`,
+        titleSuggestion: `Fehler: ${String(err?.message || err)}`.slice(0, 80),
+        descriptionSuggestion: "Bitte später erneut versuchen oder API-Key/Limit prüfen.",
+        hashtags: [],
+      };
     }
-
-    const imageUrl = `data:image/png;base64,${imgPart.inlineData.data}`;
-
-    return {
-      url: imageUrl,
-      isGenerating: false,
-    };
   }
 
   async getTips(state: AppState, currentTips: string[], uiLang: Language): Promise<string> {
-    const ai = new GoogleGenAI({ apiKey: this.getApiKey() });
+    const apiKey = this.getApiKey();
+    const ai = new GoogleGenAI({ apiKey });
     const langName = this.getLanguageName(uiLang);
 
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: `Give ONE high-impact YouTube thumbnail tip in ${langName} for topic "${state.videoTopic}". Context: ${state.storyDetails}. Avoid repeating: ${currentTips.join(", ")}`,
-    });
+    try {
+      const response = await this.withTimeout(
+        ai.models.generateContent({
+          model: "gemini-3-flash-preview",
+          contents: `You are a world-class YouTube consultant. Give ONE high-impact tip in ${langName} for a video about "${state.videoTopic}". Context: ${state.storyDetails}. Tip must be different from: ${currentTips.join(
+            ", "
+          )}`,
+        }) as any,
+        20000,
+        "getTips"
+      );
 
-    return response.text || "Nutze starke Kontraste und ein klares Hauptmotiv.";
+      // @google/genai liefert Text je nach Version unterschiedlich – fallback:
+      const text =
+        (response as any)?.text ||
+        (response as any)?.candidates?.[0]?.content?.parts?.find((p: any) => p?.text)?.text ||
+        "";
+
+      return text || "Optimiere den Kontrast zwischen Motiv und Hintergrund.";
+    } catch (err) {
+      console.error("Tips Error:", err);
+      return "Fokus auf Gesichter und starke Emotionen.";
+    }
   }
 }
