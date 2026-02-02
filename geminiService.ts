@@ -153,10 +153,10 @@ COMPOSITION: Cinematic, intense, professional YouTube quality. Aspect ratio 16:9
         hashtags: ["#EliteThumbnail", "#ViralContent", "#CreatorEconomy"],
         isGenerating: false,
       };
-    } catch (err: any) {
-  console.error("Gemini Error:", err);
-  throw err;
-}
+      } catch (err: any) {
+      console.error("Gemini Error:", err);
+      throw err;
+    }
 
   async getTips(state: AppState, currentTips: string[], uiLang: Language): Promise<string> {
     const apiKey = this.getApiKey();
