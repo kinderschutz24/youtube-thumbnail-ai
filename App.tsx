@@ -3,6 +3,16 @@ import { Language, AppState, ThumbnailResult } from './types';
 import { translations } from './translations';
 import { GeminiService } from './geminiService';
 
+declare global {
+  interface AIStudio {
+    hasSelectedApiKey: () => Promise<boolean>;
+    openSelectKey: () => Promise<void>;
+  }
+  interface Window {
+    aistudio: AIStudio;
+  }
+}
+
 const Header: React.FC<{
   lang: Language;
   setLang: (l: Language) => void;
@@ -257,6 +267,7 @@ export default function App() {
     });
   };
 
+  // ✅ WICHTIG: handleCreate MIT try/catch, damit Spinner nicht ewig dreht
   const handleCreate = async () => {
     setIsGenerating(true);
     setStep(2);
@@ -273,18 +284,38 @@ export default function App() {
     }));
     setResults(initial);
 
-    for (let i = 0; i < 4; i++) {
-      const res = await service.generateThumbnailContent(state, i + 1);
-      setResults((prev) => {
-        const n = [...prev];
-        n[i] = { ...n[i], ...res, isGenerating: false };
-        return n;
-      });
-    }
+    try {
+      for (let i = 0; i < 4; i++) {
+        try {
+          const res = await service.generateThumbnailContent(state, i + 1);
+          setResults((prev) => {
+            const n = [...prev];
+            n[i] = { ...n[i], ...res, isGenerating: false };
+            return n;
+          });
+        } catch (err: any) {
+          console.error('generateThumbnailContent error:', err);
+          setResults((prev) => {
+            const n = [...prev];
+            n[i] = {
+              ...n[i],
+              isGenerating: false,
+              titleSuggestion: 'Fehler beim Generieren',
+              descriptionSuggestion: String(err?.message || err),
+            };
+            return n;
+          });
+        }
+      }
 
-    const tip = await service.getTips(state, [], lang);
-    setTips([tip]);
-    setIsGenerating(false);
+      const tip = await service.getTips(state, [], lang);
+      setTips([tip]);
+    } catch (err: any) {
+      console.error('handleCreate fatal error:', err);
+      alert('Fehler: ' + String(err?.message || err));
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const handleRefine = async (id: number) => {
@@ -294,10 +325,21 @@ export default function App() {
 
     setResults((prev) => prev.map((r) => (r.id === id ? { ...r, isGenerating: true } : r)));
 
-    const service = new GeminiService();
-    const res = await service.generateThumbnailContent(state, id, text, image);
+    try {
+      const service = new GeminiService();
+      const res = await service.generateThumbnailContent(state, id, text, image);
+      setResults((prev) => prev.map((r) => (r.id === id ? { ...r, ...res, isGenerating: false } : r)));
+    } catch (err: any) {
+      console.error('handleRefine error:', err);
+      setResults((prev) =>
+        prev.map((r) =>
+          r.id === id
+            ? { ...r, isGenerating: false, titleSuggestion: 'Fehler', descriptionSuggestion: String(err?.message || err) }
+            : r
+        )
+      );
+    }
 
-    setResults((prev) => prev.map((r) => (r.id === id ? { ...r, ...res, isGenerating: false } : r)));
     setRefinementTexts((prev) => ({ ...prev, [id]: '' }));
     setRefinementImages((prev) => ({ ...prev, [id]: '' }));
   };
@@ -357,6 +399,7 @@ export default function App() {
     setRefinementImages({});
   };
 
+  // --- Login wall ---
   if (!isLoggedIn) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center text-white text-center p-6">
@@ -372,6 +415,7 @@ export default function App() {
     );
   }
 
+  // --- API key wall ---
   if (!hasKey) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center">
@@ -414,12 +458,17 @@ export default function App() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 18L18 6M6 6l12 12"></path>
             </svg>
           </button>
-          <img src={selectedImage} className="max-w-full max-h-full rounded-2xl shadow-2xl object-contain border-2 border-white/10" alt="Full" />
+          <img
+            src={selectedImage}
+            className="max-w-full max-h-full rounded-2xl shadow-2xl object-contain border-2 border-white/10"
+            alt="Full"
+          />
         </div>
       )}
 
       {step === 1 ? (
         <div className="space-y-16 animate-in fade-in slide-in-from-bottom-8 duration-700 pb-20">
+
           {/* TEIL 1 – KONZEPT & STORY */}
           <section className="bg-white/5 backdrop-blur-xl p-12 rounded-[2.5rem] border-2 border-white/20 relative shadow-2xl">
             <div className="absolute top-0 right-0 bg-red-600 px-8 py-3 text-sm font-black uppercase tracking-[0.2em] rounded-bl-3xl shadow-2xl">
@@ -596,7 +645,6 @@ export default function App() {
                     >
                       {translations.aiText[lang]}
                     </button>
-
                     <button
                       onClick={() => setState({ ...state, textCreation: 'user' })}
                       className={`text-left px-8 py-5 rounded-2xl border-3 transition font-black uppercase text-xs tracking-[0.2em] shadow-xl ${
@@ -643,7 +691,9 @@ export default function App() {
               Teil 4 – BILD-DNA
             </div>
 
-            <h2 className="text-4xl font-black mb-4 uppercase text-white italic underline decoration-red-600 decoration-8 underline-offset-8">BILD-DNA</h2>
+            <h2 className="text-4xl font-black mb-4 uppercase text-white italic underline decoration-red-600 decoration-8 underline-offset-8">
+              BILD-DNA
+            </h2>
             <p className="text-red-600 font-black mb-12 uppercase text-base tracking-[0.4em]">{translations.optionalHint[lang]}</p>
 
             <div className="grid grid-cols-3 gap-8 mb-12">
@@ -719,22 +769,27 @@ export default function App() {
               >
                 <div
                   className="relative aspect-video bg-black/80 flex items-center justify-center cursor-zoom-in overflow-hidden"
-                  onClick={() => !res.isGenerating && setSelectedImage(res.url)}
+                  onClick={() => !res.isGenerating && res.url && setSelectedImage(res.url)}
                 >
                   {res.isGenerating ? (
                     <div className="text-center">
                       <div className="animate-spin h-20 w-20 border-t-8 border-red-600 mx-auto mb-8 rounded-full"></div>
                       <p className="text-lg font-black uppercase text-white">{translations.generatingStatus[lang]}</p>
                     </div>
-                  ) : (
+                  ) : res.url ? (
                     <img src={res.url} className="w-full h-full object-cover group-hover:scale-110 transition duration-500" alt="" />
+                  ) : (
+                    <div className="p-6 text-white/70 text-center">
+                      <div className="font-black mb-2">{res.titleSuggestion || 'Kein Bild erhalten'}</div>
+                      <div className="text-sm whitespace-pre-wrap">{res.descriptionSuggestion || ''}</div>
+                    </div>
                   )}
 
                   <div className="absolute top-8 left-8 bg-red-600 text-white w-14 h-14 rounded-3xl flex items-center justify-center font-black z-10 shadow-xl">
                     {res.id}
                   </div>
 
-                  {!res.isGenerating && (
+                  {!res.isGenerating && res.url && (
                     <a
                       href={res.url}
                       download
@@ -801,6 +856,12 @@ export default function App() {
                         </svg>
                       </button>
                     </div>
+
+                    {tips.length > 0 && (
+                      <div className="mt-6 text-white/70 text-sm whitespace-pre-wrap">
+                        {tips.join('\n')}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
