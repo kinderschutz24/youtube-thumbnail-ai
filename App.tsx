@@ -418,7 +418,7 @@ export default function App() {
         <h1 className="text-3xl font-bold mb-4">Zugang erforderlich</h1>
         <p className="max-w-md text-white/70 mb-6">
           Du kannst die App kostenlos testen. Für den Zugang ist eine Anmeldung mit Zahlungsmethode nötig. Erst nach der
-          Testphase werden 2 CHF / Monat verrechnet.
+          Testphase werden 2 CHF / Monat verrechnet. Du wirst darauf nach Deine Google API-Key gefragt, damit die KI das Bild erstellen kann.
         </p>
         <a href="https://buy.stripe.com/aFadRa6KK0gA4MjgKI6Zy00" className="bg-red-600 hover:bg-red-700 px-8 py-4 rounded-full font-bold uppercase">
           Jetzt freischalten
