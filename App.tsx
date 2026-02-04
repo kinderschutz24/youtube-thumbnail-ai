@@ -68,7 +68,7 @@ const Header: React.FC<{
         onClick={onRegenerate}
         className="bg-white text-black px-6 py-2 rounded-full font-black text-sm hover:bg-red-600 hover:text-white transition shadow-xl"
       >
-        {translations.newGen[lang]}
+        {translations.fresh[lang]}
       </button>
     </div>
   </header>
