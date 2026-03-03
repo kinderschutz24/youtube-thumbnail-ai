@@ -162,6 +162,11 @@ const AudioInput: React.FC<{ onResult: (text: string) => void }> = ({ onResult }
 export default function App() {
   const [hasKey, setHasKey] = useState(false);
   const [apiKeyInput, setApiKeyInput] = useState('');
+  const [session, setSession] = useState<any>(null);
+const [authLoading, setAuthLoading] = useState(true);
+const [email, setEmail] = useState('');
+const [password, setPassword] = useState('');
+const [authError, setAuthError] = useState('');
 
   // Load Gemini Key
   useEffect(() => {
