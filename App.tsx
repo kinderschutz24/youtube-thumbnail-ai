@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Language, AppState, ThumbnailResult } from './types';
 import { translations } from './translations';
 import { GeminiService } from './geminiService';
+import { supabase } from "./supabaseClient";
 
 declare global {
   interface AIStudio {
