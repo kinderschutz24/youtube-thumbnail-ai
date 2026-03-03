@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Language, AppState, ThumbnailResult } from './types';
 import { translations } from './translations';
 import { GeminiService } from './geminiService';
-import { supabase } from "./supabaseClient";
+import { supabase } from './supabaseClient';
 
 declare global {
   interface AIStudio {
@@ -44,27 +44,24 @@ const Header: React.FC<{
         ))}
       </div>
 
-<a
-  href="https://drive.google.com/drive/folders/1WKPlOlxZhyNiumrnW5AR65C-AGWRu4HO?usp=sharing"
-  target="_blank"
-  rel="noopener noreferrer"
-  className="bg-red-600 text-white px-6 py-2 rounded-full font-black text-sm hover:bg-red-700 transition shadow-lg shadow-red-600/40"
->
-  Tutorial
-</a>
+      <a
+        href="https://drive.google.com/drive/folders/1WKPlOlxZhyNiumrnW5AR65C-AGWRu4HO?usp=sharing"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="bg-red-600 text-white px-6 py-2 rounded-full font-black text-sm hover:bg-red-700 transition shadow-lg shadow-red-600/40"
+      >
+        Tutorial
+      </a>
 
-<a
-  href="https://amzn.to/46fkqgk"
-  target="_blank"
-  rel="noopener noreferrer"
-  className="bg-red-600 text-white px-6 py-2 rounded-full font-black text-sm hover:bg-red-700 transition shadow-lg shadow-red-600/40"
->
-  Empfehlung
-</a>
+      <a
+        href="https://amzn.to/46fkqgk"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="bg-red-600 text-white px-6 py-2 rounded-full font-black text-sm hover:bg-red-700 transition shadow-lg shadow-red-600/40"
+      >
+        Empfehlung
+      </a>
 
-
-
-      
       <button
         onClick={onRegenerate}
         className="bg-white text-black px-6 py-2 rounded-full font-black text-sm hover:bg-red-600 hover:text-white transition shadow-xl"
@@ -162,11 +159,22 @@ const AudioInput: React.FC<{ onResult: (text: string) => void }> = ({ onResult }
 export default function App() {
   const [hasKey, setHasKey] = useState(false);
   const [apiKeyInput, setApiKeyInput] = useState('');
+
+  // Supabase auth state
   const [session, setSession] = useState<any>(null);
-const [authLoading, setAuthLoading] = useState(true);
-const [email, setEmail] = useState('');
-const [password, setPassword] = useState('');
-const [authError, setAuthError] = useState('');
+  const [authLoading, setAuthLoading] = useState(true);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [authError, setAuthError] = useState('');
+  const [showLogin, setShowLogin] = useState(false);
+
+  // Anti-spam cooldown (verhindert 429 „Too Many Requests“ Chaos)
+  const [cooldown, setCooldown] = useState(0);
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const t = window.setInterval(() => setCooldown((c) => Math.max(0, c - 1)), 1000);
+    return () => window.clearInterval(t);
+  }, [cooldown]);
 
   // Load Gemini Key
   useEffect(() => {
@@ -174,26 +182,25 @@ const [authError, setAuthError] = useState('');
     setApiKeyInput(key);
     setHasKey(!!key);
   }, []);
+
   // Supabase Session Check
-useEffect(() => {
-  const checkSession = async () => {
-    const { data } = await supabase.auth.getSession();
-    setSession(data.session);
-    setAuthLoading(false);
-  };
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data } = await supabase.auth.getSession();
+      setSession(data.session);
+      setAuthLoading(false);
+    };
 
-  checkSession();
+    checkSession();
 
-  const { data: listener } = supabase.auth.onAuthStateChange(
-    (_event, newSession) => {
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
       setSession(newSession);
-    }
-  );
+    });
 
-  return () => {
-    listener.subscription.unsubscribe();
-  };
-}, []);
+    return () => {
+      listener.subscription.unsubscribe();
+    };
+  }, []);
 
   const [lang, setLang] = useState<Language>(Language.DE);
 
@@ -293,7 +300,6 @@ useEffect(() => {
     });
   };
 
-  // ✅ WICHTIG: handleCreate MIT try/catch, damit Spinner nicht ewig dreht
   const handleCreate = async () => {
     setIsGenerating(true);
     setStep(2);
@@ -359,9 +365,7 @@ useEffect(() => {
       console.error('handleRefine error:', err);
       setResults((prev) =>
         prev.map((r) =>
-          r.id === id
-            ? { ...r, isGenerating: false, titleSuggestion: 'Fehler', descriptionSuggestion: String(err?.message || err) }
-            : r
+          r.id === id ? { ...r, isGenerating: false, titleSuggestion: 'Fehler', descriptionSuggestion: String(err?.message || err) } : r
         )
       );
     }
@@ -425,63 +429,123 @@ useEffect(() => {
     setRefinementImages({});
   };
 
+  // -----------------------------
+  // AUTH GATES (Stripe + Supabase)
+  // -----------------------------
+
   // Auth loading screen
-if (authLoading) {
-  return (
-    <div className="min-h-screen flex items-center justify-center text-white">
-      <div className="animate-spin h-12 w-12 border-t-4 border-white rounded-full"></div>
-    </div>
-  );
-}
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-white">
+        <div className="animate-spin h-12 w-12 border-t-4 border-white rounded-full"></div>
+      </div>
+    );
+  }
 
-// Login wall
-if (!session) {
-  return (
-    <div className="min-h-screen flex flex-col items-center justify-center text-white p-6">
-      <h1 className="text-3xl font-black mb-6">Login erforderlich</h1>
+  // PAYWALL + Login (Stripe bleibt drin)
+  if (!session) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center text-white p-6 text-center">
+        <img
+          src="https://drive.google.com/thumbnail?id=153FZr2r59JJLnApFRrO73DIzcGT72hXv&sz=w500"
+          className="w-64 mb-10 opacity-80"
+          alt="Logo"
+        />
 
-      <input
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        placeholder="E-Mail"
-        className="w-full max-w-md mb-4 bg-white/10 border-2 border-white/20 rounded-2xl px-6 py-4 text-white outline-none"
-      />
+        <h1 className="text-4xl font-black mb-4 uppercase tracking-widest">Zugang erforderlich</h1>
+        <p className="max-w-xl text-white/70 mb-8">
+          2 CHF / Monat. Erst kaufen – dann Login. (Stripe Checkout)
+        </p>
 
-      <input
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        type="password"
-        placeholder="Passwort"
-        className="w-full max-w-md mb-4 bg-white/10 border-2 border-white/20 rounded-2xl px-6 py-4 text-white outline-none"
-      />
+        {/* Stripe Checkout (dein Link) */}
+        <a
+          href="https://buy.stripe.com/aFadRa6KK0gA4MjgKI6Zy00"
+          className="bg-red-600 hover:bg-red-700 px-10 py-5 rounded-full font-black uppercase tracking-widest shadow-2xl shadow-red-600/30 mb-8"
+        >
+          Abo kaufen (Stripe)
+        </a>
 
-      <button
-        onClick={async () => {
-          const { error } = await supabase.auth.signInWithPassword({ email, password });
-          if (error) setAuthError(error.message);
-        }}
-        className="bg-red-600 px-8 py-4 rounded-full font-black mb-3"
-      >
-        Login
-      </button>
+        <button
+          onClick={() => setShowLogin((s) => !s)}
+          className="bg-white/10 hover:bg-white/20 px-8 py-4 rounded-full font-black uppercase tracking-widest transition mb-6"
+        >
+          {showLogin ? 'Login ausblenden' : 'Ich habe schon bezahlt → Login'}
+        </button>
 
-      <button
-        onClick={async () => {
-          const { error } = await supabase.auth.signUp({ email, password });
-          if (error) setAuthError(error.message);
-        }}
-        className="bg-white/10 px-8 py-4 rounded-full font-black"
-      >
-        Registrieren
-      </button>
+        {showLogin && (
+          <div className="w-full max-w-md bg-white/5 border border-white/15 rounded-3xl p-6">
+            <h2 className="text-xl font-black mb-4 uppercase tracking-widest">Login / Registrieren</h2>
 
-      {authError && (
-        <div className="mt-4 text-red-400 font-bold">{authError}</div>
-      )}
-    </div>
-  );
-}
-   // --- API key wall ---
+            <input
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="E-Mail"
+              className="w-full mb-4 bg-white/10 border-2 border-white/20 rounded-2xl px-6 py-4 text-white outline-none"
+            />
+
+            <input
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              type="password"
+              placeholder="Passwort"
+              className="w-full mb-4 bg-white/10 border-2 border-white/20 rounded-2xl px-6 py-4 text-white outline-none"
+            />
+
+            <button
+              disabled={cooldown > 0}
+              onClick={async () => {
+                setAuthError('');
+                const { error } = await supabase.auth.signInWithPassword({ email, password });
+                if (error) {
+                  setAuthError(error.message || 'Login fehlgeschlagen');
+                  if (String(error.message || '').toLowerCase().includes('too many') || String(error.message || '').includes('429')) {
+                    setCooldown(60);
+                  }
+                }
+              }}
+              className={`w-full px-8 py-4 rounded-full font-black mb-3 transition ${
+                cooldown > 0 ? 'bg-white/10 text-white/50 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700'
+              }`}
+            >
+              {cooldown > 0 ? `Bitte warten (${cooldown}s)` : 'Login'}
+            </button>
+
+            <button
+              disabled={cooldown > 0}
+              onClick={async () => {
+                setAuthError('');
+                const { error } = await supabase.auth.signUp({ email, password });
+                if (error) {
+                  setAuthError(error.message || 'Registrierung fehlgeschlagen');
+                  if (String(error.message || '').toLowerCase().includes('too many') || String(error.message || '').includes('429')) {
+                    setCooldown(60);
+                  }
+                }
+              }}
+              className={`w-full px-8 py-4 rounded-full font-black transition ${
+                cooldown > 0 ? 'bg-white/10 text-white/50 cursor-not-allowed' : 'bg-white/10 hover:bg-white/20'
+              }`}
+            >
+              Registrieren
+            </button>
+
+            {authError && <div className="mt-4 text-red-400 font-bold">{authError}</div>}
+            {cooldown > 0 && (
+              <div className="mt-3 text-white/60 text-sm">
+                Aus Sicherheitsgründen kannst du kurz keine neuen Requests schicken. Warte bitte die Sekunden runter.
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="mt-10 text-white/50 text-sm max-w-xl">
+          Hinweis: Die echte „bezahlt / nicht bezahlt“ Prüfung passiert serverseitig (Webhook). Diese UI ist der korrekte Stripe-Einstieg + Login-Einstieg.
+        </div>
+      </div>
+    );
+  }
+
+  // --- API key wall ---
   if (!hasKey) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center">
@@ -491,7 +555,9 @@ if (!session) {
           alt="Logo"
         />
         <h1 className="text-4xl font-black mb-6 uppercase tracking-widest text-white">API-KEY AKTIVIERUNG</h1>
-        <p className="text-white/60 mb-6 max-w-md">Die Nutzung erfordert deinen eigenen Gemini API-Key. Alle Daten bleiben privat.</p>
+        <p className="text-white/60 mb-6 max-w-md">
+          Die Nutzung erfordert deinen eigenen Gemini API-Key. Alle Daten bleiben privat.
+        </p>
 
         <input
           value={apiKeyInput}
@@ -510,6 +576,9 @@ if (!session) {
     );
   }
 
+  // -----------------------------
+  // APP UI
+  // -----------------------------
   return (
     <div className="min-h-screen pt-24 pb-32 px-6 text-white max-w-6xl mx-auto relative z-10">
       <Header lang={lang} setLang={setLang} onRegenerate={handleRegenerate} />
@@ -534,7 +603,6 @@ if (!session) {
 
       {step === 1 ? (
         <div className="space-y-16 animate-in fade-in slide-in-from-bottom-8 duration-700 pb-20">
-
           {/* TEIL 1 – KONZEPT & STORY */}
           <section className="bg-white/5 backdrop-blur-xl p-12 rounded-[2.5rem] border-2 border-white/20 relative shadow-2xl">
             <div className="absolute top-0 right-0 bg-red-600 px-8 py-3 text-sm font-black uppercase tracking-[0.2em] rounded-bl-3xl shadow-2xl">
@@ -690,7 +758,9 @@ if (!session) {
                       key={opt}
                       onClick={() => setState({ ...state, textControl: opt as any })}
                       className={`text-left px-8 py-5 rounded-2xl border-3 transition font-black uppercase text-xs tracking-[0.2em] shadow-xl ${
-                        state.textControl === opt ? 'bg-red-600 border-red-600 scale-105 shadow-red-600/30' : 'bg-white/10 border-white/10 text-white'
+                        state.textControl === opt
+                          ? 'bg-red-600 border-red-600 scale-105 shadow-red-600/30'
+                          : 'bg-white/10 border-white/10 text-white'
                       }`}
                     >
                       {translations[opt === 'always' ? 'alwaysText' : opt === 'none' ? 'noText' : 'mixedText'][lang]}
@@ -784,7 +854,9 @@ if (!session) {
                       key={opt}
                       onClick={() => toggleDnaOption(activeDnaTab, opt)}
                       className={`px-6 py-4 rounded-2xl text-xs font-black transition border-3 ${
-                        state.dna[activeDnaTab].includes(opt) ? 'bg-red-600 border-red-600 text-white scale-110' : 'bg-white/10 border-white/20 text-white'
+                        state.dna[activeDnaTab].includes(opt)
+                          ? 'bg-red-600 border-red-600 text-white scale-110'
+                          : 'bg-white/10 border-white/20 text-white'
                       }`}
                     >
                       {opt}
@@ -923,11 +995,7 @@ if (!session) {
                       </button>
                     </div>
 
-                    {tips.length > 0 && (
-                      <div className="mt-6 text-white/70 text-sm whitespace-pre-wrap">
-                        {tips.join('\n')}
-                      </div>
-                    )}
+                    {tips.length > 0 && <div className="mt-6 text-white/70 text-sm whitespace-pre-wrap">{tips.join('\n')}</div>}
                   </div>
                 </div>
               </div>
