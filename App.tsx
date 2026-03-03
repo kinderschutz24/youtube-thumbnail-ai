@@ -452,17 +452,21 @@ export default function App() {
           alt="Logo"
         />
 
-        <h1 className="text-4xl font-black mb-4 uppercase tracking-widest">Zugang erforderlich</h1>
-        <p className="max-w-xl text-white/70 mb-8">
-          2 CHF / Monat. Erst kaufen – dann Login. (Stripe Checkout)
-        </p>
+       <h1 className="text-4xl font-black mb-4 uppercase tracking-widest">
+  10 Tage kostenlos testen
+</h1>
+
+<p className="max-w-xl text-white/70 mb-8">
+  Teste die App 10 Tage gratis. Danach nur 2 CHF pro Monat.
+  Keine Verpflichtung – erst testen, dann entscheiden.
+</p>
 
         {/* Stripe Checkout (dein Link) */}
         <a
           href="https://buy.stripe.com/aFadRa6KK0gA4MjgKI6Zy00"
           className="bg-red-600 hover:bg-red-700 px-10 py-5 rounded-full font-black uppercase tracking-widest shadow-2xl shadow-red-600/30 mb-8"
         >
-          Abo kaufen (Stripe)
+          10 Tage gratis testen (Stripe)
         </a>
 
         <button
