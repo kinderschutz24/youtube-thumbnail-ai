@@ -174,6 +174,26 @@ const [authError, setAuthError] = useState('');
     setApiKeyInput(key);
     setHasKey(!!key);
   }, []);
+  // Supabase Session Check
+useEffect(() => {
+  const checkSession = async () => {
+    const { data } = await supabase.auth.getSession();
+    setSession(data.session);
+    setAuthLoading(false);
+  };
+
+  checkSession();
+
+  const { data: listener } = supabase.auth.onAuthStateChange(
+    (_event, newSession) => {
+      setSession(newSession);
+    }
+  );
+
+  return () => {
+    listener.subscription.unsubscribe();
+  };
+}, []);
 
   const [lang, setLang] = useState<Language>(Language.DE);
 
@@ -405,6 +425,62 @@ const [authError, setAuthError] = useState('');
     setRefinementImages({});
   };
 
+  // Auth loading screen
+if (authLoading) {
+  return (
+    <div className="min-h-screen flex items-center justify-center text-white">
+      <div className="animate-spin h-12 w-12 border-t-4 border-white rounded-full"></div>
+    </div>
+  );
+}
+
+// Login wall
+if (!session) {
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center text-white p-6">
+      <h1 className="text-3xl font-black mb-6">Login erforderlich</h1>
+
+      <input
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        placeholder="E-Mail"
+        className="w-full max-w-md mb-4 bg-white/10 border-2 border-white/20 rounded-2xl px-6 py-4 text-white outline-none"
+      />
+
+      <input
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        type="password"
+        placeholder="Passwort"
+        className="w-full max-w-md mb-4 bg-white/10 border-2 border-white/20 rounded-2xl px-6 py-4 text-white outline-none"
+      />
+
+      <button
+        onClick={async () => {
+          const { error } = await supabase.auth.signInWithPassword({ email, password });
+          if (error) setAuthError(error.message);
+        }}
+        className="bg-red-600 px-8 py-4 rounded-full font-black mb-3"
+      >
+        Login
+      </button>
+
+      <button
+        onClick={async () => {
+          const { error } = await supabase.auth.signUp({ email, password });
+          if (error) setAuthError(error.message);
+        }}
+        className="bg-white/10 px-8 py-4 rounded-full font-black"
+      >
+        Registrieren
+      </button>
+
+      {authError && (
+        <div className="mt-4 text-red-400 font-bold">{authError}</div>
+      )}
+    </div>
+  );
+}
    // --- API key wall ---
   if (!hasKey) {
     return (
