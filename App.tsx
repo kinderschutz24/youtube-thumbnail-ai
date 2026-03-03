@@ -473,7 +473,7 @@ export default function App() {
           onClick={() => setShowLogin((s) => !s)}
           className="bg-white/10 hover:bg-white/20 px-8 py-4 rounded-full font-black uppercase tracking-widest transition mb-6"
         >
-          {showLogin ? 'Login ausblenden' : 'Ich habe schon bezahlt → Login'}
+          {showLogin ? 'Login ausblenden' : 'Ich bin schon dabei → Login'}
         </button>
 
         {showLogin && (
