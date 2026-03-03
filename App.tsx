@@ -161,18 +161,6 @@ const AudioInput: React.FC<{ onResult: (text: string) => void }> = ({ onResult }
 export default function App() {
   const [hasKey, setHasKey] = useState(false);
   const [apiKeyInput, setApiKeyInput] = useState('');
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-
-  // Stripe paid=1 -> Login flag
-  useEffect(() => {
-    const paid = new URLSearchParams(window.location.search).get('paid');
-    if (paid === '1') {
-      localStorage.setItem('ytai_paid_access', 'yes');
-      window.history.replaceState({}, document.title, window.location.pathname);
-    }
-    const ok = localStorage.getItem('ytai_paid_access') === 'yes';
-    setIsLoggedIn(ok);
-  }, []);
 
   // Load Gemini Key
   useEffect(() => {
