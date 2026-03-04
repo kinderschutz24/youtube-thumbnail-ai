@@ -168,6 +168,37 @@ export default function App() {
   const [authError, setAuthError] = useState('');
   const [showLogin, setShowLogin] = useState(false);
 
+  // ✅ Password-Recovery Flow (Supabase sendet KEIN Passwort – User setzt es hier)
+  const [isRecovery, setIsRecovery] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [resetMsg, setResetMsg] = useState('');
+  const [resetBusy, setResetBusy] = useState(false);
+
+  useEffect(() => {
+    // Supabase Recovery-Link nutzt normalerweise den URL-Hash:
+    // #access_token=...&type=recovery  (oder ähnlich)
+    const hash = window.location.hash || '';
+    const params = new URLSearchParams(hash.startsWith('#') ? hash.slice(1) : hash);
+    const type = params.get('type');
+
+    if (type === 'recovery') {
+      setIsRecovery(true);
+
+      // Wichtig: Session aus URL übernehmen (damit updateUser funktioniert)
+      (async () => {
+        try {
+          const anyAuth: any = supabase.auth as any;
+          if (typeof anyAuth.getSessionFromUrl === 'function') {
+            await anyAuth.getSessionFromUrl({ storeSession: true });
+          }
+        } catch (e) {
+          // Kein Crash – UI zeigt dann beim Speichern eine klare Fehlermeldung.
+          console.warn('getSessionFromUrl failed:', e);
+        }
+      })();
+    }
+  }, []);
+
   // Anti-spam cooldown (verhindert 429 „Too Many Requests“ Chaos)
   const [cooldown, setCooldown] = useState(0);
   useEffect(() => {
@@ -201,6 +232,63 @@ export default function App() {
       listener.subscription.unsubscribe();
     };
   }, []);
+
+  // ✅ Recovery UI: kommt VOR allen anderen “Gates”
+  if (isRecovery) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6 text-white">
+        <div className="w-full max-w-md bg-white/5 border border-white/15 rounded-3xl p-6 text-center">
+          <h2 className="text-xl font-black mb-4 uppercase tracking-widest">Neues Passwort setzen</h2>
+
+          <input
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            type="password"
+            placeholder="Neues Passwort (min. 8 Zeichen)"
+            className="w-full mb-4 bg-white/10 border-2 border-white/20 rounded-2xl px-6 py-4 text-white outline-none"
+          />
+
+          <button
+            disabled={resetBusy}
+            onClick={async () => {
+              setResetMsg('');
+
+              if (!newPassword || newPassword.length < 8) {
+                setResetMsg('Bitte mindestens 8 Zeichen eingeben.');
+                return;
+              }
+
+              setResetBusy(true);
+              try {
+                const { error } = await supabase.auth.updateUser({ password: newPassword });
+                if (error) {
+                  setResetMsg(error.message || 'Passwort setzen fehlgeschlagen');
+                  return;
+                }
+
+                setResetMsg('✅ Passwort gespeichert. Du kannst dich jetzt normal einloggen.');
+
+                // Hash entfernen + zurück zur App
+                setTimeout(() => {
+                  window.location.hash = '';
+                  window.location.href = window.location.origin + '/';
+                }, 1200);
+              } finally {
+                setResetBusy(false);
+              }
+            }}
+            className={`w-full px-8 py-4 rounded-full font-black mb-2 transition ${
+              resetBusy ? 'bg-white/10 text-white/50 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700'
+            }`}
+          >
+            {resetBusy ? 'Bitte warten…' : 'Passwort speichern'}
+          </button>
+
+          {resetMsg && <div className="mt-3 text-white/80 font-bold">{resetMsg}</div>}
+        </div>
+      </div>
+    );
+  }
 
   const [lang, setLang] = useState<Language>(Language.DE);
 
@@ -299,7 +387,7 @@ export default function App() {
       return { ...prev, dna: { ...prev.dna, [category]: next } };
     });
   };
-
+  
   const handleCreate = async () => {
     setIsGenerating(true);
     setStep(2);
