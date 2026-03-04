@@ -98,6 +98,3 @@ export default async function handler(req: any, res: any) {
       })
       .eq('stripe_subscription_id', subscription.id)
   }
-
-  res.status(200).json({ received: true })
-}
