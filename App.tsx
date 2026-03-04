@@ -529,9 +529,51 @@ export default function App() {
       </div>
     );
   }
+  // -----------------------------
+  // PAID GATE (Supabase "subscriptions" Tabelle)
+  // -----------------------------
+  const [isPaid, setIsPaid] = useState(false);
+  const [paidLoading, setPaidLoading] = useState(true);
 
+  useEffect(() => {
+    const run = async () => {
+      if (!session?.user?.id) {
+        setIsPaid(false);
+        setPaidLoading(false);
+        return;
+      }
+
+      setPaidLoading(true);
+
+      const { data, error } = await supabase
+        .from('subscriptions')
+        .select('status,current_period_end')
+        .eq('user_id', session.user.id)
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error) {
+        console.error('paid-check error', error);
+        setIsPaid(false);
+        setPaidLoading(false);
+        return;
+      }
+
+      const okStatus = data?.status === 'active' || data?.status === 'trialing';
+      const okTime =
+        !data?.current_period_end ||
+        new Date(data.current_period_end).getTime() > Date.now();
+
+      setIsPaid(Boolean(okStatus && okTime));
+      setPaidLoading(false);
+    };
+
+    run();
+  }, [session?.user?.id]);
+  
   // PAYWALL + Login (Stripe bleibt drin)
-  if (!session) {
+  if (!session || paidLoading || !isPaid) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center text-white p-6 text-center">
         <img
