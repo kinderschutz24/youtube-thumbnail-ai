@@ -157,6 +157,9 @@ const AudioInput: React.FC<{ onResult: (text: string) => void }> = ({ onResult }
 };
 
 export default function App() {
+  // -----------------------------
+  // 1) ALLE HOOKS ZUERST (KEIN return DAVOR!)
+  // -----------------------------
   const [hasKey, setHasKey] = useState(false);
   const [apiKeyInput, setApiKeyInput] = useState('');
 
@@ -168,28 +171,58 @@ export default function App() {
   const [authError, setAuthError] = useState('');
   const [showLogin, setShowLogin] = useState(false);
 
-  // ✅ Password-Recovery Flow (Supabase sendet KEIN Passwort – User setzt es hier)
+  // Password-Recovery Flow
   const [isRecovery, setIsRecovery] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [resetMsg, setResetMsg] = useState('');
   const [resetBusy, setResetBusy] = useState(false);
 
-  // Anti-spam cooldown (verhindert 429 „Too Many Requests“ Chaos)
+  // Anti-spam cooldown
   const [cooldown, setCooldown] = useState(0);
+
+  // App state
+  const [lang, setLang] = useState<Language>(Language.DE);
+  const [step, setStep] = useState(1);
+  const [activeDnaTab, setActiveDnaTab] = useState<'colors' | 'style' | 'camera' | null>(null);
+  const [results, setResults] = useState<ThumbnailResult[]>([]);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [tips, setTips] = useState<string[]>([]);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [refinementTexts, setRefinementTexts] = useState<{ [key: number]: string }>({});
+  const [refinementImages, setRefinementImages] = useState<{ [key: number]: string }>({});
+
+  const [state, setState] = useState<AppState>({
+    youtubeLink: '',
+    videoTopic: '',
+    storyDetails: '',
+    importantDetails: '',
+    detailImages: [],
+    environmentImages: [],
+    protagonistImages: [],
+    textControl: 'always',
+    textCreation: 'ai',
+    userCustomText: '',
+    sloganLanguage: Language.DE,
+    dna: { colors: [], style: [], camera: [], customStyle: '', specialStyles: [] },
+  });
+
+  // -----------------------------
+  // 2) EFFECTS
+  // -----------------------------
+
   useEffect(() => {
     if (cooldown <= 0) return;
     const t = window.setInterval(() => setCooldown((c) => Math.max(0, c - 1)), 1000);
     return () => window.clearInterval(t);
   }, [cooldown]);
 
-  // Load Gemini Key
   useEffect(() => {
     const key = localStorage.getItem('ytai_gemini_api_key') || '';
     setApiKeyInput(key);
     setHasKey(!!key);
   }, []);
 
-  // ✅ Recovery-Link erkennen + Session aus URL übernehmen (damit updateUser funktioniert)
+  // Recovery-Link erkennen + Session aus URL übernehmen (damit updateUser funktioniert)
   useEffect(() => {
     const hash = window.location.hash || '';
     const params = new URLSearchParams(hash.startsWith('#') ? hash.slice(1) : hash);
@@ -202,17 +235,9 @@ export default function App() {
         try {
           const anyAuth: any = supabase.auth as any;
 
-          // Supabase JS hat je nach Version unterschiedliche Methoden.
-          // 1) getSessionFromUrl (älter/teilweise vorhanden)
+          // v2: existiert i.d.R.
           if (typeof anyAuth.getSessionFromUrl === 'function') {
             await anyAuth.getSessionFromUrl({ storeSession: true });
-            return;
-          }
-
-          // 2) exchangeCodeForSession (PKCE/neu – falls recovery über Code läuft)
-          if (typeof anyAuth.exchangeCodeForSession === 'function') {
-            await anyAuth.exchangeCodeForSession(window.location.href);
-            return;
           }
         } catch (e) {
           console.warn('Recovery URL session handling failed:', e);
@@ -249,7 +274,15 @@ export default function App() {
     };
   }, []);
 
-  // ✅ Recovery UI: kommt VOR allen anderen “Gates”
+  useEffect(() => {
+    setState((prev) => ({ ...prev, sloganLanguage: lang }));
+  }, [lang]);
+
+  // -----------------------------
+  // 3) RETURNS / GATES (JETZT ERST!)
+  // -----------------------------
+
+  // Recovery UI (jetzt korrekt: kommt nach ALLEN Hooks)
   if (isRecovery) {
     return (
       <div className="min-h-screen flex items-center justify-center p-6 text-white">
@@ -285,7 +318,6 @@ export default function App() {
                 setResetMsg('✅ Passwort gespeichert. Du kannst dich jetzt normal einloggen.');
 
                 setTimeout(() => {
-                  // Hash entfernen + zurück zur App
                   window.location.hash = '';
                   window.location.href = window.location.origin + '/';
                 }, 1200);
@@ -305,36 +337,6 @@ export default function App() {
       </div>
     );
   }
-
-  const [lang, setLang] = useState<Language>(Language.DE);
-
-  const [step, setStep] = useState(1);
-  const [activeDnaTab, setActiveDnaTab] = useState<'colors' | 'style' | 'camera' | null>(null);
-  const [results, setResults] = useState<ThumbnailResult[]>([]);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [tips, setTips] = useState<string[]>([]);
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  const [refinementTexts, setRefinementTexts] = useState<{ [key: number]: string }>({});
-  const [refinementImages, setRefinementImages] = useState<{ [key: number]: string }>({});
-
-  const [state, setState] = useState<AppState>({
-    youtubeLink: '',
-    videoTopic: '',
-    storyDetails: '',
-    importantDetails: '',
-    detailImages: [],
-    environmentImages: [],
-    protagonistImages: [],
-    textControl: 'always',
-    textCreation: 'ai',
-    userCustomText: '',
-    sloganLanguage: Language.DE,
-    dna: { colors: [], style: [], camera: [], customStyle: '', specialStyles: [] },
-  });
-
-  useEffect(() => {
-    setState((prev) => ({ ...prev, sloganLanguage: lang }));
-  }, [lang]);
 
   const handleKeySelection = () => {
     const key = apiKeyInput.trim();
@@ -403,7 +405,7 @@ export default function App() {
       return { ...prev, dna: { ...prev.dna, [category]: next } };
     });
   };
-  
+
   const handleCreate = async () => {
     setIsGenerating(true);
     setStep(2);
