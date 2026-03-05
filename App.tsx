@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Language, AppState, ThumbnailResult } from './types';
 import { translations } from './translations';
 import { GeminiService } from './geminiService';
-import { supabase } from './supabaseClient';
 
 declare global {
   interface AIStudio {
@@ -44,24 +43,27 @@ const Header: React.FC<{
         ))}
       </div>
 
-      <a
-        href="https://drive.google.com/drive/folders/1WKPlOlxZhyNiumrnW5AR65C-AGWRu4HO?usp=sharing"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="bg-red-600 text-white px-6 py-2 rounded-full font-black text-sm hover:bg-red-700 transition shadow-lg shadow-red-600/40"
-      >
-        Tutorial
-      </a>
+<a
+  href="https://drive.google.com/drive/folders/1WKPlOlxZhyNiumrnW5AR65C-AGWRu4HO?usp=sharing"
+  target="_blank"
+  rel="noopener noreferrer"
+  className="bg-red-600 text-white px-6 py-2 rounded-full font-black text-sm hover:bg-red-700 transition shadow-lg shadow-red-600/40"
+>
+  Tutorial
+</a>
 
-      <a
-        href="https://amzn.to/46fkqgk"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="bg-red-600 text-white px-6 py-2 rounded-full font-black text-sm hover:bg-red-700 transition shadow-lg shadow-red-600/40"
-      >
-        Empfehlung
-      </a>
+<a
+  href="https://amzn.to/46fkqgk"
+  target="_blank"
+  rel="noopener noreferrer"
+  className="bg-red-600 text-white px-6 py-2 rounded-full font-black text-sm hover:bg-red-700 transition shadow-lg shadow-red-600/40"
+>
+  Empfehlung
+</a>
 
+
+
+      
       <button
         onClick={onRegenerate}
         className="bg-white text-black px-6 py-2 rounded-full font-black text-sm hover:bg-red-600 hover:text-white transition shadow-xl"
@@ -157,31 +159,30 @@ const AudioInput: React.FC<{ onResult: (text: string) => void }> = ({ onResult }
 };
 
 export default function App() {
-  // -----------------------------
-  // 1) ALLE HOOKS ZUERST (KEIN return DAVOR!)
-  // -----------------------------
   const [hasKey, setHasKey] = useState(false);
   const [apiKeyInput, setApiKeyInput] = useState('');
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
-  // Supabase auth state
-  const [session, setSession] = useState<any>(null);
-  const [authLoading, setAuthLoading] = useState(true);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [authError, setAuthError] = useState('');
-  const [showLogin, setShowLogin] = useState(false);
+  // Stripe paid=1 -> Login flag
+  useEffect(() => {
+    const paid = new URLSearchParams(window.location.search).get('paid');
+    if (paid === '1') {
+      localStorage.setItem('ytai_paid_access', 'yes');
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+    const ok = localStorage.getItem('ytai_paid_access') === 'yes';
+    setIsLoggedIn(ok);
+  }, []);
 
-  // Password-Recovery Flow
-  const [isRecovery, setIsRecovery] = useState(false);
-  const [newPassword, setNewPassword] = useState('');
-  const [resetMsg, setResetMsg] = useState('');
-  const [resetBusy, setResetBusy] = useState(false);
+  // Load Gemini Key
+  useEffect(() => {
+    const key = localStorage.getItem('ytai_gemini_api_key') || '';
+    setApiKeyInput(key);
+    setHasKey(!!key);
+  }, []);
 
-  // Anti-spam cooldown
-  const [cooldown, setCooldown] = useState(0);
-
-  // App state
   const [lang, setLang] = useState<Language>(Language.DE);
+
   const [step, setStep] = useState(1);
   const [activeDnaTab, setActiveDnaTab] = useState<'colors' | 'style' | 'camera' | null>(null);
   const [results, setResults] = useState<ThumbnailResult[]>([]);
@@ -206,137 +207,9 @@ export default function App() {
     dna: { colors: [], style: [], camera: [], customStyle: '', specialStyles: [] },
   });
 
-  // -----------------------------
-  // 2) EFFECTS
-  // -----------------------------
-
-  useEffect(() => {
-    if (cooldown <= 0) return;
-    const t = window.setInterval(() => setCooldown((c) => Math.max(0, c - 1)), 1000);
-    return () => window.clearInterval(t);
-  }, [cooldown]);
-
-  useEffect(() => {
-    const key = localStorage.getItem('ytai_gemini_api_key') || '';
-    setApiKeyInput(key);
-    setHasKey(!!key);
-  }, []);
-
-  // Recovery-Link erkennen + Session aus URL übernehmen (damit updateUser funktioniert)
-  useEffect(() => {
-    const hash = window.location.hash || '';
-    const params = new URLSearchParams(hash.startsWith('#') ? hash.slice(1) : hash);
-    const type = params.get('type');
-
-    if (type === 'recovery') {
-      setIsRecovery(true);
-
-      (async () => {
-        try {
-          const anyAuth: any = supabase.auth as any;
-
-          // v2: existiert i.d.R.
-          if (typeof anyAuth.getSessionFromUrl === 'function') {
-            await anyAuth.getSessionFromUrl({ storeSession: true });
-          }
-        } catch (e) {
-          console.warn('Recovery URL session handling failed:', e);
-        }
-      })();
-    }
-  }, []);
-
-  // Supabase Session Check (IMMER authLoading beenden)
-  useEffect(() => {
-    let mounted = true;
-
-    const checkSession = async () => {
-      try {
-        const { data } = await supabase.auth.getSession();
-        if (!mounted) return;
-        setSession(data.session);
-      } finally {
-        if (mounted) setAuthLoading(false);
-      }
-    };
-
-    checkSession();
-
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
-      if (!mounted) return;
-      setSession(newSession);
-      setAuthLoading(false);
-    });
-
-    return () => {
-      mounted = false;
-      listener.subscription.unsubscribe();
-    };
-  }, []);
-
   useEffect(() => {
     setState((prev) => ({ ...prev, sloganLanguage: lang }));
   }, [lang]);
-
-  // -----------------------------
-  // 3) RETURNS / GATES (JETZT ERST!)
-  // -----------------------------
-
-  // Recovery UI (jetzt korrekt: kommt nach ALLEN Hooks)
-  if (isRecovery) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-6 text-white">
-        <div className="w-full max-w-md bg-white/5 border border-white/15 rounded-3xl p-6 text-center">
-          <h2 className="text-xl font-black mb-4 uppercase tracking-widest">Neues Passwort setzen</h2>
-
-          <input
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-            type="password"
-            placeholder="Neues Passwort (min. 8 Zeichen)"
-            className="w-full mb-4 bg-white/10 border-2 border-white/20 rounded-2xl px-6 py-4 text-white outline-none"
-          />
-
-          <button
-            disabled={resetBusy}
-            onClick={async () => {
-              setResetMsg('');
-
-              if (!newPassword || newPassword.length < 8) {
-                setResetMsg('Bitte mindestens 8 Zeichen eingeben.');
-                return;
-              }
-
-              setResetBusy(true);
-              try {
-                const { error } = await supabase.auth.updateUser({ password: newPassword });
-                if (error) {
-                  setResetMsg(error.message || 'Passwort setzen fehlgeschlagen');
-                  return;
-                }
-
-                setResetMsg('✅ Passwort gespeichert. Du kannst dich jetzt normal einloggen.');
-
-                setTimeout(() => {
-                  window.location.hash = '';
-                  window.location.href = window.location.origin + '/';
-                }, 1200);
-              } finally {
-                setResetBusy(false);
-              }
-            }}
-            className={`w-full px-8 py-4 rounded-full font-black mb-2 transition ${
-              resetBusy ? 'bg-white/10 text-white/50 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700'
-            }`}
-          >
-            {resetBusy ? 'Bitte warten…' : 'Passwort speichern'}
-          </button>
-
-          {resetMsg && <div className="mt-3 text-white/80 font-bold">{resetMsg}</div>}
-        </div>
-      </div>
-    );
-  }
 
   const handleKeySelection = () => {
     const key = apiKeyInput.trim();
@@ -406,6 +279,7 @@ export default function App() {
     });
   };
 
+  // ✅ WICHTIG: handleCreate MIT try/catch, damit Spinner nicht ewig dreht
   const handleCreate = async () => {
     setIsGenerating(true);
     setStep(2);
@@ -471,7 +345,9 @@ export default function App() {
       console.error('handleRefine error:', err);
       setResults((prev) =>
         prev.map((r) =>
-          r.id === id ? { ...r, isGenerating: false, titleSuggestion: 'Fehler', descriptionSuggestion: String(err?.message || err) } : r
+          r.id === id
+            ? { ...r, isGenerating: false, titleSuggestion: 'Fehler', descriptionSuggestion: String(err?.message || err) }
+            : r
         )
       );
     }
@@ -535,164 +411,18 @@ export default function App() {
     setRefinementImages({});
   };
 
-  // -----------------------------
-  // AUTH GATES (Stripe + Supabase)
-  // -----------------------------
-
-  // Auth loading screen
-  if (authLoading) {
+  // --- Login wall ---
+  if (!isLoggedIn) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-white">
-        <div className="animate-spin h-12 w-12 border-t-4 border-white rounded-full"></div>
-      </div>
-    );
-  }
-  // -----------------------------
-  // PAID GATE (Supabase "subscriptions" Tabelle)
-  // -----------------------------
-  const [isPaid, setIsPaid] = useState(false);
-  const [paidLoading, setPaidLoading] = useState(true);
-
-  useEffect(() => {
-    const run = async () => {
-      if (!session?.user?.id) {
-        setIsPaid(false);
-        setPaidLoading(false);
-        return;
-      }
-
-      setPaidLoading(true);
-
-      const { data, error } = await supabase
-        .from('subscriptions')
-        .select('status,current_period_end')
-        .eq('user_id', session.user.id)
-        .order('updated_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (error) {
-        console.error('paid-check error', error);
-        setIsPaid(false);
-        setPaidLoading(false);
-        return;
-      }
-
-      const okStatus = data?.status === 'active' || data?.status === 'trialing';
-      const okTime =
-        !data?.current_period_end ||
-        new Date(data.current_period_end).getTime() > Date.now();
-
-      setIsPaid(Boolean(okStatus && okTime));
-      setPaidLoading(false);
-    };
-
-    run();
-  }, [session?.user?.id]);
-  
-  // PAYWALL + Login (Stripe bleibt drin)
-  if (!session || paidLoading || !isPaid) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center text-white p-6 text-center">
-        <img
-          src="https://drive.google.com/thumbnail?id=153FZr2r59JJLnApFRrO73DIzcGT72hXv&sz=w500"
-          className="w-64 mb-10 opacity-80"
-          alt="Logo"
-        />
-
-       <h1 className="text-4xl font-black mb-4 uppercase tracking-widest">
-  10 Tage kostenlos testen
-</h1>
-
-<p className="max-w-xl text-white/70 mb-8">
-  Teste die App 10 Tage gratis. Danach nur 2 CHF pro Monat.
-  Keine Verpflichtung – erst testen, dann entscheiden.
-</p>
-
-        {/* Stripe Checkout (dein Link) */}
-        <a
-          href="https://buy.stripe.com/aFadRa6KK0gA4MjgKI6Zy00"
-          className="bg-red-600 hover:bg-red-700 px-10 py-5 rounded-full font-black uppercase tracking-widest shadow-2xl shadow-red-600/30 mb-8"
-        >
-          10 Tage gratis testen (Stripe)
+      <div className="min-h-screen flex flex-col items-center justify-center text-white text-center p-6">
+        <h1 className="text-3xl font-bold mb-4">Zugang erforderlich</h1>
+        <p className="max-w-md text-white/70 mb-6">
+          Du kannst die App kostenlos testen. Für den Zugang ist eine Anmeldung mit Zahlungsmethode nötig. Erst nach der
+          Testphase werden 2 CHF / Monat verrechnet. Du wirst darauf nach Deine Google API-Key gefragt, damit die KI das Bild erstellen kann.
+        </p>
+        <a href="https://buy.stripe.com/aFadRa6KK0gA4MjgKI6Zy00" className="bg-red-600 hover:bg-red-700 px-8 py-4 rounded-full font-bold uppercase">
+          Jetzt freischalten
         </a>
-
-        <button
-          onClick={() => setShowLogin((s) => !s)}
-          className="bg-white/10 hover:bg-white/20 px-8 py-4 rounded-full font-black uppercase tracking-widest transition mb-6"
-        >
-          {showLogin ? 'Login ausblenden' : 'Ich bin schon dabei → Login'}
-        </button>
-
-        {showLogin && (
-          <div className="w-full max-w-md bg-white/5 border border-white/15 rounded-3xl p-6">
-            <h2 className="text-xl font-black mb-4 uppercase tracking-widest">Login / Registrieren</h2>
-
-            <input
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="E-Mail"
-              className="w-full mb-4 bg-white/10 border-2 border-white/20 rounded-2xl px-6 py-4 text-white outline-none"
-            />
-
-            <input
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              type="password"
-              placeholder="Passwort"
-              className="w-full mb-4 bg-white/10 border-2 border-white/20 rounded-2xl px-6 py-4 text-white outline-none"
-            />
-
-            <button
-              disabled={cooldown > 0}
-              onClick={async () => {
-                setAuthError('');
-                const { error } = await supabase.auth.signInWithPassword({ email, password });
-                if (error) {
-                  setAuthError(error.message || 'Login fehlgeschlagen');
-                  if (String(error.message || '').toLowerCase().includes('too many') || String(error.message || '').includes('429')) {
-                    setCooldown(60);
-                  }
-                }
-              }}
-              className={`w-full px-8 py-4 rounded-full font-black mb-3 transition ${
-                cooldown > 0 ? 'bg-white/10 text-white/50 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700'
-              }`}
-            >
-              {cooldown > 0 ? `Bitte warten (${cooldown}s)` : 'Login'}
-            </button>
-
-            <button
-              disabled={cooldown > 0}
-              onClick={async () => {
-                setAuthError('');
-                const { error } = await supabase.auth.signUp({ email, password });
-                if (error) {
-                  setAuthError(error.message || 'Registrierung fehlgeschlagen');
-                  if (String(error.message || '').toLowerCase().includes('too many') || String(error.message || '').includes('429')) {
-                    setCooldown(60);
-                  }
-                }
-              }}
-              className={`w-full px-8 py-4 rounded-full font-black transition ${
-                cooldown > 0 ? 'bg-white/10 text-white/50 cursor-not-allowed' : 'bg-white/10 hover:bg-white/20'
-              }`}
-            >
-              Registrieren
-            </button>
-
-            {authError && <div className="mt-4 text-red-400 font-bold">{authError}</div>}
-            {cooldown > 0 && (
-              <div className="mt-3 text-white/60 text-sm">
-                Aus Sicherheitsgründen kannst du kurz keine neuen Requests schicken. Warte bitte die Sekunden runter.
-              </div>
-            )}
-          </div>
-        )}
-
-        <div className="mt-10 text-white/50 text-sm max-w-xl">
-          Hinweis: Die echte „bezahlt / nicht bezahlt“ Prüfung passiert serverseitig (Webhook). Diese UI ist der korrekte Stripe-Einstieg + Login-Einstieg.
-        </div>
       </div>
     );
   }
@@ -707,9 +437,7 @@ export default function App() {
           alt="Logo"
         />
         <h1 className="text-4xl font-black mb-6 uppercase tracking-widest text-white">API-KEY AKTIVIERUNG</h1>
-        <p className="text-white/60 mb-6 max-w-md">
-          Die Nutzung erfordert deinen eigenen Gemini API-Key. Alle Daten bleiben privat.
-        </p>
+        <p className="text-white/60 mb-6 max-w-md">Die Nutzung erfordert deinen eigenen Gemini API-Key. Alle Daten bleiben privat.</p>
 
         <input
           value={apiKeyInput}
@@ -728,9 +456,6 @@ export default function App() {
     );
   }
 
-  // -----------------------------
-  // APP UI
-  // -----------------------------
   return (
     <div className="min-h-screen pt-24 pb-32 px-6 text-white max-w-6xl mx-auto relative z-10">
       <Header lang={lang} setLang={setLang} onRegenerate={handleRegenerate} />
@@ -755,6 +480,7 @@ export default function App() {
 
       {step === 1 ? (
         <div className="space-y-16 animate-in fade-in slide-in-from-bottom-8 duration-700 pb-20">
+
           {/* TEIL 1 – KONZEPT & STORY */}
           <section className="bg-white/5 backdrop-blur-xl p-12 rounded-[2.5rem] border-2 border-white/20 relative shadow-2xl">
             <div className="absolute top-0 right-0 bg-red-600 px-8 py-3 text-sm font-black uppercase tracking-[0.2em] rounded-bl-3xl shadow-2xl">
@@ -910,9 +636,7 @@ export default function App() {
                       key={opt}
                       onClick={() => setState({ ...state, textControl: opt as any })}
                       className={`text-left px-8 py-5 rounded-2xl border-3 transition font-black uppercase text-xs tracking-[0.2em] shadow-xl ${
-                        state.textControl === opt
-                          ? 'bg-red-600 border-red-600 scale-105 shadow-red-600/30'
-                          : 'bg-white/10 border-white/10 text-white'
+                        state.textControl === opt ? 'bg-red-600 border-red-600 scale-105 shadow-red-600/30' : 'bg-white/10 border-white/10 text-white'
                       }`}
                     >
                       {translations[opt === 'always' ? 'alwaysText' : opt === 'none' ? 'noText' : 'mixedText'][lang]}
@@ -1006,9 +730,7 @@ export default function App() {
                       key={opt}
                       onClick={() => toggleDnaOption(activeDnaTab, opt)}
                       className={`px-6 py-4 rounded-2xl text-xs font-black transition border-3 ${
-                        state.dna[activeDnaTab].includes(opt)
-                          ? 'bg-red-600 border-red-600 text-white scale-110'
-                          : 'bg-white/10 border-white/20 text-white'
+                        state.dna[activeDnaTab].includes(opt) ? 'bg-red-600 border-red-600 text-white scale-110' : 'bg-white/10 border-white/20 text-white'
                       }`}
                     >
                       {opt}
@@ -1147,7 +869,11 @@ export default function App() {
                       </button>
                     </div>
 
-                    {tips.length > 0 && <div className="mt-6 text-white/70 text-sm whitespace-pre-wrap">{tips.join('\n')}</div>}
+                    {tips.length > 0 && (
+                      <div className="mt-6 text-white/70 text-sm whitespace-pre-wrap">
+                        {tips.join('\n')}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
