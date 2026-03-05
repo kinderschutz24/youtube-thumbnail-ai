@@ -174,31 +174,6 @@ export default function App() {
   const [resetMsg, setResetMsg] = useState('');
   const [resetBusy, setResetBusy] = useState(false);
 
-  useEffect(() => {
-    // Supabase Recovery-Link nutzt normalerweise den URL-Hash:
-    // #access_token=...&type=recovery  (oder ähnlich)
-    const hash = window.location.hash || '';
-    const params = new URLSearchParams(hash.startsWith('#') ? hash.slice(1) : hash);
-    const type = params.get('type');
-
-    if (type === 'recovery') {
-      setIsRecovery(true);
-
-      // Wichtig: Session aus URL übernehmen (damit updateUser funktioniert)
-      (async () => {
-        try {
-          const anyAuth: any = supabase.auth as any;
-          if (typeof anyAuth.getSessionFromUrl === 'function') {
-            await anyAuth.getSessionFromUrl({ storeSession: true });
-          }
-        } catch (e) {
-          // Kein Crash – UI zeigt dann beim Speichern eine klare Fehlermeldung.
-          console.warn('getSessionFromUrl failed:', e);
-        }
-      })();
-    }
-  }, []);
-
   // Anti-spam cooldown (verhindert 429 „Too Many Requests“ Chaos)
   const [cooldown, setCooldown] = useState(0);
   useEffect(() => {
@@ -214,21 +189,62 @@ export default function App() {
     setHasKey(!!key);
   }, []);
 
-  // Supabase Session Check
+  // ✅ Recovery-Link erkennen + Session aus URL übernehmen (damit updateUser funktioniert)
   useEffect(() => {
+    const hash = window.location.hash || '';
+    const params = new URLSearchParams(hash.startsWith('#') ? hash.slice(1) : hash);
+    const type = params.get('type');
+
+    if (type === 'recovery') {
+      setIsRecovery(true);
+
+      (async () => {
+        try {
+          const anyAuth: any = supabase.auth as any;
+
+          // Supabase JS hat je nach Version unterschiedliche Methoden.
+          // 1) getSessionFromUrl (älter/teilweise vorhanden)
+          if (typeof anyAuth.getSessionFromUrl === 'function') {
+            await anyAuth.getSessionFromUrl({ storeSession: true });
+            return;
+          }
+
+          // 2) exchangeCodeForSession (PKCE/neu – falls recovery über Code läuft)
+          if (typeof anyAuth.exchangeCodeForSession === 'function') {
+            await anyAuth.exchangeCodeForSession(window.location.href);
+            return;
+          }
+        } catch (e) {
+          console.warn('Recovery URL session handling failed:', e);
+        }
+      })();
+    }
+  }, []);
+
+  // Supabase Session Check (IMMER authLoading beenden)
+  useEffect(() => {
+    let mounted = true;
+
     const checkSession = async () => {
-      const { data } = await supabase.auth.getSession();
-      setSession(data.session);
-      setAuthLoading(false);
+      try {
+        const { data } = await supabase.auth.getSession();
+        if (!mounted) return;
+        setSession(data.session);
+      } finally {
+        if (mounted) setAuthLoading(false);
+      }
     };
 
     checkSession();
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      if (!mounted) return;
       setSession(newSession);
+      setAuthLoading(false);
     });
 
     return () => {
+      mounted = false;
       listener.subscription.unsubscribe();
     };
   }, []);
@@ -268,8 +284,8 @@ export default function App() {
 
                 setResetMsg('✅ Passwort gespeichert. Du kannst dich jetzt normal einloggen.');
 
-                // Hash entfernen + zurück zur App
                 setTimeout(() => {
+                  // Hash entfernen + zurück zur App
                   window.location.hash = '';
                   window.location.href = window.location.origin + '/';
                 }, 1200);
