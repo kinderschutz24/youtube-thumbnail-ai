@@ -437,7 +437,7 @@ export default function App() {
           alt="Logo"
         />
         <h1 className="text-4xl font-black mb-6 uppercase tracking-widest text-white">API-KEY AKTIVIERUNG</h1>
-        <p className="text-white/60 mb-6 max-w-md">Die Nutzung erfordert deinen eigenen Gemini API-Key. Alle Daten bleiben privat.</p>
+        <p className="text-white/60 mb-6 max-w-md">Die Nutzung erfordert deinen eigenen Gemini API-Key - hier der Link dazu: https://console.cloud.google.com/ . Alle Daten bleiben privat.</p>
 
         <input
           value={apiKeyInput}
