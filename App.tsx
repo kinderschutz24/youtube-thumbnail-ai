@@ -435,7 +435,7 @@ if (!isLoggedIn) {
         </p>
 
         <div className="bg-white/10 rounded-xl p-4 text-sm text-white/90 space-y-3">
-          <p className="font-semibold text-white">Google API-Key erstellen</p>
+          <p className="font-semibold text-white">Anleitungen und Links</p>
 
            <p>
             Anleitung für Thumbnails zu erstellen:
@@ -451,7 +451,7 @@ if (!isLoggedIn) {
           </p>
 
           <p>
-            Google Cloud Console:
+            Link zu Google Cloud Console:
             <br />
             <a
               href="https://console.cloud.google.com/"
@@ -464,7 +464,7 @@ if (!isLoggedIn) {
           </p>
 
           <p>
-            Anleitung zur Erstellung:
+            Anleitung zur Erstellung des Google API-Key:
             <br />
             <a
               href="https://bit.ly/API-KEY"
