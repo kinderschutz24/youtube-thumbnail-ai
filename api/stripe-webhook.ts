@@ -23,78 +23,111 @@ export default async function handler(req: any, res: any) {
   }
 
   const sig = req.headers['stripe-signature']
-  const buf = await buffer(req)
 
-  let event
+  if (!sig) {
+    return res.status(400).send('Missing stripe-signature header')
+  }
+
+  let event: Stripe.Event
 
   try {
+    const buf = await buffer(req)
+
     event = stripe.webhooks.constructEvent(
       buf,
       sig,
       process.env.STRIPE_WEBHOOK_SECRET!
     )
   } catch (err: any) {
-    console.error('Webhook signature verification failed.', err.message)
+    console.error('Webhook signature verification failed:', err.message)
     return res.status(400).send(`Webhook Error: ${err.message}`)
   }
 
-  // 🎯 Checkout completed (Trial oder Abo gestartet)
-  if (event.type === 'checkout.session.completed') {
-    const session = event.data.object as Stripe.Checkout.Session
+  try {
+    if (event.type === 'checkout.session.completed') {
+      const session = event.data.object as Stripe.Checkout.Session
 
-    const customerId = session.customer as string
-    const subscriptionId = session.subscription as string
+      const customerId = session.customer as string
+      const subscriptionId = session.subscription as string
+      const userId = session.metadata?.user_id
 
-    const subscription = await stripe.subscriptions.retrieve(subscriptionId)
+      if (!userId) {
+        console.error('Missing user_id in session metadata')
+        return res.status(400).send('Missing user_id in metadata')
+      }
 
-    const userId = session.metadata?.user_id
+      if (!subscriptionId) {
+        console.error('Missing subscriptionId in checkout session')
+        return res.status(400).send('Missing subscriptionId')
+      }
 
-    if (!userId) {
-      console.error('No user_id in metadata')
-      return res.status(400).send('Missing user_id')
+      const subscription = await stripe.subscriptions.retrieve(subscriptionId)
+
+      const { error } = await supabase.from('subscriptions').upsert({
+        user_id: userId,
+        stripe_customer_id: customerId,
+        stripe_subscription_id: subscriptionId,
+        status: subscription.status,
+        current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+        trial_end: subscription.trial_end
+          ? new Date(subscription.trial_end * 1000).toISOString()
+          : null,
+        updated_at: new Date().toISOString(),
+      })
+
+      if (error) {
+        console.error('Supabase upsert error:', error)
+        return res.status(500).send('Supabase upsert failed')
+      }
+
+      console.log('Subscription saved/updated successfully')
     }
 
-    await supabase.from('subscriptions').upsert({
-      user_id: userId,
-      stripe_customer_id: customerId,
-      stripe_subscription_id: subscriptionId,
-      status: subscription.status,
-      current_period_end: new Date(subscription.current_period_end * 1000),
-      trial_end: subscription.trial_end
-        ? new Date(subscription.trial_end * 1000)
-        : null,
-      updated_at: new Date(),
-    })
+    if (event.type === 'customer.subscription.updated') {
+      const subscription = event.data.object as Stripe.Subscription
 
-    console.log('Subscription saved/updated')
+      const { error } = await supabase
+        .from('subscriptions')
+        .update({
+          status: subscription.status,
+          current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+          trial_end: subscription.trial_end
+            ? new Date(subscription.trial_end * 1000).toISOString()
+            : null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('stripe_subscription_id', subscription.id)
+
+      if (error) {
+        console.error('Supabase update error:', error)
+        return res.status(500).send('Supabase update failed')
+      }
+
+      console.log('Subscription updated successfully')
+    }
+
+    if (event.type === 'customer.subscription.deleted') {
+      const subscription = event.data.object as Stripe.Subscription
+
+      const { error } = await supabase
+        .from('subscriptions')
+        .update({
+          status: 'canceled',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('stripe_subscription_id', subscription.id)
+
+      if (error) {
+        console.error('Supabase cancel update error:', error)
+        return res.status(500).send('Supabase cancel update failed')
+      }
+
+      console.log('Subscription cancelled successfully')
+    }
+
+    return res.status(200).json({ received: true })
+  } catch (err: any) {
+    console.error('Webhook handler error:', err)
+    return res.status(500).send('Internal Server Error')
   }
-
-  // 🎯 Abo Status geändert
-  if (event.type === 'customer.subscription.updated') {
-    const subscription = event.data.object as Stripe.Subscription
-
-    await supabase
-      .from('subscriptions')
-      .update({
-        status: subscription.status,
-        current_period_end: new Date(subscription.current_period_end * 1000),
-        trial_end: subscription.trial_end
-          ? new Date(subscription.trial_end * 1000)
-          : null,
-        updated_at: new Date(),
-      })
-      .eq('stripe_subscription_id', subscription.id)
-  }
-
-  // 🎯 Kündigung
-  if (event.type === 'customer.subscription.deleted') {
-    const subscription = event.data.object as Stripe.Subscription
-
-    await supabase
-      .from('subscriptions')
-      .update({
-        status: 'canceled',
-        updated_at: new Date(),
-      })
-      .eq('stripe_subscription_id', subscription.id)
-  }
+}
