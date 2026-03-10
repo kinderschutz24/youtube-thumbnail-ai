@@ -412,22 +412,66 @@ export default function App() {
   };
 
   // --- Login wall ---
-  if (!isLoggedIn) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center text-white text-center p-6">
-        <h1 className="text-3xl font-bold mb-4">Zugang erforderlich</h1>
-        <p className="max-w-md text-white/70 mb-6">
-          Du kannst die App kostenlos testen. Für den Zugang ist eine Anmeldung mit Zahlungsmethode nötig. Erst nach der
-          Testphase werden 2 CHF / Monat verrechnet. Du wirst darauf nach Deine Google API-Key gefragt, damit die KI das Bild erstellen kann. 
-          <p>
-          Die Key findest Du hier: https://console.cloud.google.com/. Und falls Du eine Anleitung benötigst, wähle diese Domain: https://bit.ly/API-KEY
+if (!isLoggedIn) {
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center text-white text-center p-6">
+      
+      <h1 className="text-3xl font-bold mb-4">Zugang erforderlich</h1>
+
+      <div className="max-w-md text-white/70 mb-6 space-y-4">
+
+        <p>
+          Du kannst die App kostenlos testen. Für den Zugang ist eine Anmeldung mit
+          Zahlungsmethode nötig.
         </p>
-        <a href="https://buy.stripe.com/aFadRa6KK0gA4MjgKI6Zy00" className="bg-red-600 hover:bg-red-700 px-8 py-4 rounded-full font-bold uppercase">
-          Jetzt freischalten
-        </a>
+
+        <p>
+          Erst nach der Testphase werden <strong>2 CHF / Monat</strong> verrechnet.
+        </p>
+
+        <p>
+          Für die Nutzung der KI benötigst Du einen eigenen <strong>Google API-Key</strong>,
+          damit die KI das Bild erstellen kann.
+        </p>
+
+        <p>
+          API-Key erstellen:
+          <br />
+          <a
+            href="https://console.cloud.google.com/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-400 underline"
+          >
+            https://console.cloud.google.com/
+          </a>
+        </p>
+
+        <p>
+          Anleitung zur Erstellung:
+          <br />
+          <a
+            href="https://bit.ly/API-KEY"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-400 underline"
+          >
+            https://bit.ly/API-KEY
+          </a>
+        </p>
+
       </div>
-    );
-  }
+
+      <a
+        href="https://buy.stripe.com/aFadRa6KK0gA4MjgKI6Zy00"
+        className="bg-red-600 hover:bg-red-700 px-8 py-4 rounded-full font-bold uppercase"
+      >
+        Jetzt freischalten
+      </a>
+
+    </div>
+  );
+}
 
   // --- API key wall ---
   if (!hasKey) {
