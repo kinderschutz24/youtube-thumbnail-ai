@@ -411,64 +411,74 @@ export default function App() {
     setRefinementImages({});
   };
 
-  // --- Login wall ---
+// --- Login wall ---
 if (!isLoggedIn) {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center text-white text-center p-6">
-      
       <h1 className="text-3xl font-bold mb-4">Zugang erforderlich</h1>
 
-      <div className="max-w-md text-white/70 mb-6 space-y-4">
-
+      <div className="max-w-md text-white/80 mb-6 space-y-4">
         <p>
-          Du kannst die App kostenlos testen. Für den Zugang ist eine Anmeldung mit
-          Zahlungsmethode nötig.
+          Du kannst die App kostenlos testen. Für den Zugang ist eine Anmeldung
+          mit Zahlungsmethode nötig.
         </p>
 
         <p>
-          Erst nach der Testphase werden <strong>2 CHF / Monat</strong> verrechnet.
+          Die ersten <strong>10 Tage sind kostenlos</strong>. Danach werden
+          <strong> 2 CHF pro Monat</strong> verrechnet.
         </p>
 
         <p>
-          Für die Nutzung der KI benötigst Du einen eigenen <strong>Google API-Key</strong>,
-          damit die KI das Bild erstellen kann.
+          Für die Nutzung der KI benötigst Du einen eigenen
+          <strong> Google API-Key</strong>. Diesen brauchst Du später, damit die
+          KI Deine Bilder erstellen kann.
         </p>
 
-        <p>
-          API-Key erstellen:
-          <br />
-          <a
-            href="https://console.cloud.google.com/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-blue-400 underline"
-          >
-            https://console.cloud.google.com/
-          </a>
-        </p>
+        <div className="bg-white/10 rounded-xl p-4 text-sm text-white/90 space-y-3">
+          <p className="font-semibold text-white">Google API-Key erstellen</p>
 
-        <p>
-          Anleitung zur Erstellung:
-          <br />
-          <a
-            href="https://bit.ly/API-KEY"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-blue-400 underline"
-          >
-            https://bit.ly/API-KEY
-          </a>
-        </p>
+          <p>
+            Google Cloud Console:
+            <br />
+            <a
+              href="https://console.cloud.google.com/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-400 underline break-all"
+            >
+              https://console.cloud.google.com/
+            </a>
+          </p>
 
+          <p>
+            Anleitung zur Erstellung:
+            <br />
+            <a
+              href="https://bit.ly/API-KEY"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-400 underline break-all"
+            >
+              https://bit.ly/API-KEY
+            </a>
+          </p>
+        </div>
+
+        <p className="text-sm text-white/60">
+          Die Einrichtung dauert nur etwa 1 Minute.
+        </p>
       </div>
 
       <a
         href="https://buy.stripe.com/aFadRa6KK0gA4MjgKI6Zy00"
-        className="bg-red-600 hover:bg-red-700 px-8 py-4 rounded-full font-bold uppercase"
+        className="bg-red-600 hover:bg-red-700 px-8 py-4 rounded-full font-bold uppercase transition"
       >
         Jetzt freischalten
       </a>
 
+      <p className="mt-4 text-xs text-white/50 max-w-md">
+        Mit dem Klick auf „Jetzt freischalten“ startest Du den Testzugang.
+      </p>
     </div>
   );
 }
