@@ -441,12 +441,12 @@ if (!isLoggedIn) {
             Anleitung für Thumbnails zu erstellen:
             <br />
             <a
-              href="https://drive.google.com/file/d/1YS50JGtmFWD7sF1x9cHPXS7tVsvMxi1Y/view?usp=sharing"
+              href="https://bit.ly/ThumbDNAils"
               target="_blank"
               rel="noopener noreferrer"
               className="text-blue-400 underline break-all"
             >
-              https://drive.google.com/file/d/1YS50JGtmFWD7sF1x9cHPXS7tVsvMxi1Y/view?usp=sharing
+              https://bit.ly/ThumbDNAils
             </a>
           </p>
 
