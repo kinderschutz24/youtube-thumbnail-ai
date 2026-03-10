@@ -478,7 +478,7 @@ if (!isLoggedIn) {
         </div>
 
         <p className="text-sm text-white/60">
-          Die Einrichtung dauert nur etwa 1 Minute.
+          Die Einrichtung des API-Keys dauert nur etwa 1 Minute.
         </p>
       </div>
 
