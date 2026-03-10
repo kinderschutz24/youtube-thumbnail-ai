@@ -52,8 +52,8 @@ export default async function handler(req: any, res: any) {
       const userId = session.metadata?.user_id
 
       if (!userId) {
-        console.error('Missing user_id in session metadata')
-        return res.status(400).send('Missing user_id in metadata')
+        console.warn('Missing user_id in session metadata - event skipped')
+        return res.status(200).json({ received: true, skipped: 'missing user_id' })
       }
 
       if (!subscriptionId) {
