@@ -437,6 +437,19 @@ if (!isLoggedIn) {
         <div className="bg-white/10 rounded-xl p-4 text-sm text-white/90 space-y-3">
           <p className="font-semibold text-white">Google API-Key erstellen</p>
 
+           <p>
+            Anleitung für Thumbnails zu erstellen:
+            <br />
+            <a
+              href="https://drive.google.com/file/d/1YS50JGtmFWD7sF1x9cHPXS7tVsvMxi1Y/view?usp=sharing"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-400 underline break-all"
+            >
+              https://drive.google.com/file/d/1YS50JGtmFWD7sF1x9cHPXS7tVsvMxi1Y/view?usp=sharing
+            </a>
+          </p>
+
           <p>
             Google Cloud Console:
             <br />
